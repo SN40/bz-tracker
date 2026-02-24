@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+
+{% block title %}Benutzerliste{% endblock title %}
+
+{% block content %}
+    {% for user in users  %}
+     <p>ID: {{user.id}}: Name: {{user.username}} E-Mail: {{user.email}}</p>
+    {% endfor %}
+{% endblock content %}

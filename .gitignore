@@ -1,0 +1,25 @@
+text
+# Virtuelle Umgebung (sehr groß, Pfade PC-spezifisch)
+venv/
+.venv/
+env/
+.env
+__pycache__/
+instance/
+.vscode/
+*.pyc
+
+
+# Python Cache-Dateien (werden automatisch neu erstellt)
+__pycache__/
+*.py[cod]
+*$py.class
+__pycache__/
+*.pyc
+instance/
+.venv/
+
+
+# Datenbank (meist lokal unterschiedlich)
+*.sqlite3
+instance/

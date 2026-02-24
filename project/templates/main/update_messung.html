@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <h3>Messwert bearbeiten</h3>
+    <form method="POST">
+        {{ form.hidden_tag() }}
+        <div class="mb-3">
+            {{ form.wert.label(class="form-label") }}
+            {{ form.wert(class="form-control") }}
+            {{ form.notiz.label(class="form-label") }}
+            {{ form.notiz(class="form-control", rows="3") }}
+            {% for error in form.wert.errors %}
+                <div class="text-danger small">[{{ error }}]</div>
+            {% endfor %}
+            {% for error in form.notiz.errors %}
+                <div class="text-danger small">[{{ error }}]</div>
+            {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-success">Änderungen speichern</button>
+        <a href="{{ url_for('main.werte_liste') }}" class="btn btn-secondary">Abbrechen</a>
+    </form>
+</div>
+{% endblock %}

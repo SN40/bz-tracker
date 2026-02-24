@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}Anmelden{% endblock title %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Anmelden</h2>
+    <form method="POST" action="{{ url_for('auth.login') }}">
+        {{ form.hidden_tag() }}
+        <div class="mb-3">
+            {{ form.email.label }}<br>
+            {{ form.email(size=32) }}
+            {% if form.email.errors %}
+            <ul>
+                {% for error in form.email.errors  %}
+                <li>{{error}}</li>
+                {% endfor %}
+            </ul>
+                
+            {% endif %}
+            
+        </div>
+        <div class="mb-3">
+            {{ form.password.label }}<br>
+            {{ form.password(size=32) }}
+            {% if form.password.errors %}
+            <ul>
+                {% for error in form.password.errors  %}
+                <li>{{error}}</li>
+                {% endfor %}
+            </ul>
+                
+            {% endif %}
+           <!-- {{ form.remember_me.label }} {{ form.remember_me() }}  Ergibt hier keinen Sinn--> 
+
+        </div>
+        <!--<button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button> -->
+         <div class="form-group mb-2">
+        <button type="submit" class="btn btn-primary">Login</button>
+        
+        <!-- Der Link zur Reset-Anfrage -->
+        <small class="text-muted ml-2">
+            <a href="{{ url_for('api.reset_password_request') }}">Passwort vergessen?</a>
+        </small>
+    </div>
+    </form>
+{% endblock content %}

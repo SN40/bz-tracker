@@ -1,0 +1,12 @@
+[MESSAGES CONTROL]
+# C0114-0116: Docstrings
+# C0103: snake_case (erlaubt hbA1c)
+# C0411: Import-Order
+# W0611: Unused Imports (session, abort)
+# W0612: Unused Variables (all_users)
+# C0303: Trailing Whitespace
+disable=C0114,C0115,C0116,C0103,C0411,W0611,W0612,C0303,R0903
+
+[FORMAT]
+max-line-length=120
+

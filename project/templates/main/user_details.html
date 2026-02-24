@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detail</title>
+</head>
+<body>
+    <h1>Benutzerdetails</h1>
+    <p>Name: {{user.name}}</p>
+    <p>E-Mail: {{user.email}}</p>
+    {% if user.is_active %}
+        <p>Status: Aktiv</p>
+    
+    {% else %}
+        <p>Status: Inaktiv</p>
+    {% endif %}
+</body>
+</html>

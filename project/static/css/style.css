@@ -1,0 +1,57 @@
+/* Styling für Body und Schriften */
+body {
+    background-color: aliceblue;
+    font-family: sans-serif;
+}
+
+.hba1c-badge {
+    background-color: white;
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+
+.flash-error, .flash-danger { 
+    padding: 10px; margin: 10px 0; border-radius: 4px; 
+    background-color: #f8d7da; color: #721c24; 
+}
+.flash-success { 
+    padding: 10px; margin: 10px 0; border-radius: 4px; 
+    background-color: #d4edda; color: #155724; 
+}
+
+.nav-logout-custom {
+    color: #e74c3c !important; 
+}
+
+.scroll-table-container {
+    max-height: 450px; /* Deine gewünschte Höhe */
+    overflow-y: auto;
+    border-bottom: 1px solid #dee2e6; /* Optional: Schöner Abschluss */
+}
+
+/* Optional: Fixiert den Tabellenkopf (Header), damit er beim Scrollen oben bleibt */
+.scroll-table-container thead th {
+    position: sticky;
+    top: 0;
+    background-color: #f8f9fa;
+    z-index: 1;
+}
+
+.scroll-table-container {
+    max-height: 600px; /* Entspricht ca. 15-20 Zeilen */
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+}
+
+/* Fixiert den Tabellenkopf beim Scrollen */
+.scroll-table-container thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: #318fec; /* Passend zu table-dark */
+}
+
