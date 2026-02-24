@@ -8,6 +8,7 @@ from itsdangerous import URLSafeTimedSerializer as Serializer
 from flask_mail import Message
 from project import mail # Importiere das mail-Objekt
 
+
 def generate_reset_token(email):
     s = Serializer(current_app.config['SECRET_KEY'])
     return s.dumps(email, salt='password-reset-salt')
@@ -170,6 +171,24 @@ def reset_password(token):
             
     # GET-Anfrage: Zeige das Formular
     return render_template('auth/reset_token.html', token=token)
+# Test route für die E-Mail-Funktionalität
+
+#from project import mail # Import aus deiner __init__.py
+
+@api_bp.route('/test-mail')
+def test_mail():
+    try:
+        msg = Message(
+            subject="Flask Test-Mail",
+            sender="noreply@deineapp.com",
+            recipients=["schwarz.no@gmail.com"] # Setze hier deine eigene Adresse ein!
+        )
+        msg.body = "Glückwunsch! Die Verbindung zu Gmail steht und dein App-Passwort ist korrekt."
+        mail.send(msg)
+        return "E-Mail erfolgreich gesendet! Schau in dein Postfach."
+    except Exception as e:
+        return f"Fehler beim Senden: {str(e)}"
+
 
 
        
