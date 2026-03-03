@@ -1,157 +1,381 @@
-{% extends "base.html" %}
+{% extends "base.html" %} {% block title %}Meine Messwerte{% endblock %} {%
+block content %}
+<style>
+  :root {
+    --brand-color: #318fec;
+  }
+  h2,
+  h3 {
+    color: var(--brand-color);
+  }
+  .btn-primary {
+    background-color: var(--brand-color) !important;
+    border-color: var(--brand-color) !important;
+  }
+  .table-success {
+    background-color: rgba(243, 247, 247, 0.1) !important;
+  }
+</style>
 
-{% block title %}Meine Messwerte{% endblock %}
+<div class="container mt-4">
+  <h2>Dein Blutzucker-Verlauf</h2>
 
-{% block content %}
-<div class="row">
-    <!-- Linke Spalte: Formular -->
+  <div class="row">
+    <!-- Linke Spalte -->
     <div class="col-md-4">
-        <div class="card shadow-sm mb-4">
-            <div class="card-body">
-                <h3>Neuer Messwert</h3>
-                <form method="POST">
-                    {{ form.hidden_tag() }}
-                    <div class="mb-3">
-                        {{ form.wert.label(class="form-label") }}
-                        {{ form.wert(class="form-control") }}
-                        {% for error in form.wert.errors %}
-                            <div class="text-danger small">[{{ error }}]</div>
-                        {% endfor %}
-                       <!-- {{ form.notiz.label(class="form-label mt-3") }}-->
-                      <!--  {{ form.notiz(class="form-control", rows="3") }}
-                        {% for error in form.notiz.errors %}
-                            <div class="text-danger small">[{{ error }}]</div>
-                        {% endfor %} -->
-                    </div>
-                    <label for="notiz">Notiz (optional):</label>
-                        <input type="text" name="notiz " id="notiz" class="form-control" 
-                            list="notiz-vorschlaege" placeholder="Eigene Notiz oder wählen...">
-                        
-                        <datalist id="notiz-vorschlaege">
-                            <option value="Nüchtern">
-                            <option value="Vor dem Essen">
-                            <option value="Snacks">
-                            <option value="Nach dem Essen">
-                            <option value="Abends">
-                            <option value="Nach dem Sport">
-                            <option value="Fressattacke">
-                            <option value="Alkohol">
-                            <option value="Auswärts Essen">
-                            <option value="Süssigkeiten">
-                            
-
-                        </datalist>
-                    <button type="submit" class="btn btn-primary w-100">Speichern</button>
-                </form>
+      <div class="card shadow-sm mb-4">
+        <div class="card-body">
+          <h3>Neuer Messwert</h3>
+          <form method="POST">
+            {{ form.hidden_tag() }}
+            <div class="mb-3">
+              {{ form.wert.label(class="form-label") }} {{
+              form.wert(class="form-control") }}
             </div>
+            <label for="notiz">Notiz (optional):</label>
+            <input
+              type="text"
+              name="notiz"
+              id="notiz"
+              class="form-control"
+              list="notiz-vorschlaege"
+              placeholder="Wählen..."
+            />
+            <datalist id="notiz-vorschlaege">
+              <option value="Nüchtern"></option>
+              <option value="Vor dem Essen"></option>
+              <option value="Nach dem Essen"></option>
+              <option value="Snack"></option>
+              <option value="Alkohol"></option>
+              <option value="Auswärts Essen"></option>
+              <option value="Junkfood"></option>
+            </datalist>
+            <button
+              type="submit"
+              class="btn text-white w-100 mt-3"
+              style="background-color: #318fec"
+            >
+              Speichern
+            </button>
+          </form>
         </div>
+      </div>
+
+      {% if messungen %}
+      <div class="card shadow-sm mb-4">
+        <div class="card-body" style="min-height: 340px">
+          <canvas id="blutzuckerChart"></canvas>
+        </div>
+      </div>
+      <div class="mt-4">
+        <hr />
+        <h5>Datenverwaltung & Backup</h5>
+        <a
+          href="{{ url_for('main.download_csv') }}"
+          class="btn btn-outline-primary mb-3"
+          >📥 CSV exportieren</a
+        >
+        <div class="card bg-light border-0 shadow-sm p-3">
+          <h6 class="text-danger">⚠️ Daten importieren</h6>
+          <form
+            action="{{ url_for('main.upload_csv') }}"
+            method="POST"
+            enctype="multipart/form-data"
+          >
+            <input
+              type="file"
+              name="file"
+              class="form-control form-control-sm mb-2"
+              accept=".csv"
+              required
+            />
+            <div class="form-check mb-2">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                name="overwrite"
+                id="deleteCheck"
+              />
+              <label class="form-check-label small" for="deleteCheck"
+                >Fehlende Werte aus CSV ergänzen?</label
+              >
+            </div>
+            <button type="submit" class="btn btn-sm btn-primary">
+              📤 Hochladen
+            </button>
+            
+          </form>
+        </div>
+        <div class="card-footer bg-transparent border-top-0 text-end">
+          <small>
+              <a href="{{ url_for('auth.delete_account') }}" class="text-danger text-decoration-none">
+                  ⚠️ Konto unwiderruflich löschen
+              </a>
+          </small>
+        </div>
+
+
+      </div>
+      {% endif %}
     </div>
 
-    <!-- Rechte Spalte: Verlauf mit deinen Farben -->
+    <!-- Rechte Spalte -->
     <div class="col-md-8">
-        <h3>Verlauf</h3>
-        <div class="table-responsive scroll-table-container shadow-sm">
-         <table class="table table-hover align-middle">
-    <thead>
-        <tr>
-            <th>Datum</th>
-            <th>Wert</th>
-            <th>Status</th>
-            <th>Notiz</th>
-            <th class="text-end">Aktionen</th> <!-- Neue Spalte -->
-        </tr>
-    </thead>
-    <tbody>
-        {% for m in messungen %}
-        <tr class="table-{{ m.get_status_color() }}">
-            <td>{{ m.date_mess.strftime('%d.%m.%Y %H:%M') }}</td>
-            <td><strong>{{ m.wert }}</strong></td>
-            <td>{{ "Stabil" if m.get_status_color() == 'success' else "Achtung!" }}</td>
-            <td><strong>{{ m.notiz }}</strong></td>
-            <td class="text-end">
-                <!-- Update Button (Blau) -->
-                <a href="{{ url_for('main.update_messung', mess_id=m.mess_id) }}" class="btn btn-sm btn-outline-primary me-1">
-                    Bearbeiten
-                </a>
-                <!-- Lösch Button (Rot) -->
-                <a href="{{ url_for('main.delete_messung', mess_id=m.mess_id) }}" 
-                   class="btn btn-sm btn-outline-danger"
-                   onclick="return confirm('Sicher löschen?')">
-                    Löschen
-                </a>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-   
-        </div>
+      <div class="d-flex justify-content-between align-items-center mb-3">
+  <!-- 1. Überschrift (ganz links) -->
+  <h3 class="mb-0">Verlauf</h3>
 
-        <!-- Pagination Steuerung -->
-        <nav aria-label="Page navigation" class="mt-3">
-            <ul class="pagination justify-content-center">
-                {% if pagination.has_prev %}
-                <li class="page-item"><a class="page-link" href="{{ url_for('main.werte_liste', page=pagination.prev_num) }}">Zurück</a></li>
-                {% endif %}
-                
-                <li class="page-item disabled"><span class="page-link">Seite {{ pagination.page }} von {{ pagination.pages }}</span></li>
-
-                {% if pagination.has_next %}
-                <li class="page-item"><a class="page-link" href="{{ url_for('main.werte_liste', page=pagination.next_num) }}">Weiter</a></li>
-                {% endif %}
-            </ul>
-        </nav>
+  <!-- 2. Deine Buttons (ganz rechts) -->
+  <div class="d-flex gap-2">
+    <!-- PDF Dropdown -->
+    <div class="dropdown">
+      <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+        <i class="bi bi-file-pdf"></i> PDF Export
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end"> <!-- dropdown-menu-end verhindert Überlappen rechts -->
+        <li><a class="dropdown-item" href="{{ url_for('main.werte_drucken', zeitraum=14) }}" target="_blank">14 Tage</a></li>
+        <li><a class="dropdown-item" href="{{ url_for('main.werte_drucken', zeitraum=30) }}" target="_blank">30 Tage</a></li>
+        <li><a class="dropdown-item" href="{{ url_for('main.werte_drucken', zeitraum=90) }}" target="_blank">90 Tage</a></li>
+      </ul>
     </div>
-</div>
-{% if current_user.mess_stats.anzahl > 0 %}
-    <!-- Statistik-Anzeige bleibt gleich -->
-    
-    {% if current_user.mess_stats.anzahl < 20 %}
-        <div class="alert alert-info mt-3 small">
-            <i class="bi bi-info-circle"></i> 
-            <strong>Hinweis:</strong> Die Analyse wird genauer, sobald mindestens 20 Messungen vorliegen (aktuell: {{ current_user.mess_stats.anzahl }}).
-        </div>
-    {% elif current_user.mess_stats.hba1c > 6.1 %}
-        <div class="alert alert-warning mt-3 mb-0">
-            <i class="bi bi-exclamation-triangle"></i> 
-            <strong>Achtung:</strong> Dein geschätzter HbA1c ist mit {{ current_user.mess_stats.hba1c }} % erhöht. 
-            <br><small>Hinweis: Dieser Wert ist am genauesten, wenn die Daten einen Zeitraum von 3 Monaten abdecken.</small>
-        </div>
-    {% endif %}
 
-{% else %}
-    <div class="alert alert-info mb-0">Noch keine Werte vorhanden.</div>
-{% endif %}
-
-<!-- Deine Analyse-Card bleibt unten -->
-<div class="card mt-4 shadow-sm border-0 bg-light">
-    <div class="card-body">
-        <h3 class="card-title text-secondary">Analyse</h3>
-        {% if current_user.mess_stats.anzahl > 0 %}
-            <div class="row align-items-center">
-                <div class="col-md-6">
-                    <p>Messungen: <strong>{{ current_user.mess_stats.anzahl }}</strong></p>
-                    <p>Durchschnitt: <strong>{{ current_user.mess_stats.schnitt }} mg/dL</strong></p>
-                </div>
-                <div class="col-md-6 text-center">
-                    <div class="hba1c-badge shadow-sm p-3 bg-white rounded-pill border">
-                        <p class="mb-1 text-muted">Voraussichtl. HbA1c:</p>
-                        <h2 class="text-primary mb-0">{{ current_user.mess_stats.hba1c }} %</h2>
-                    </div>
-                </div>
-            </div> 
-           
-            {% if current_user.mess_stats.hba1c > 6.1 %}
-                <div class="alert alert-warning mt-3 mb-0 border-0">
-                    <i class="bi bi-exclamation-triangle"></i> Wert erhöht. Bitte Rücksprache mit deinem Arzt halten!
-                </div>
-            {% endif %}
-        {% else %}
-            <div class="alert alert-info mb-0">Noch keine Werte für eine Analyse vorhanden.</div>
-        {% endif %}
+    <!-- CSV Dropdown -->
+    <div class="dropdown">
+      <button class="btn btn-outline-success btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+        <i class="bi bi-file-earmark-spreadsheet"></i> CSV Backup
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li><a class="dropdown-item" href="{{ url_for('main.download_csv', zeitraum=30) }}">Letzte 30 Tage</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="{{ url_for('main.download_csv') }}">Alle Werte (Komplett)</a></li>
+      </ul>
     </div>
+  </div>
 </div>
 
-    
 
+      <div class="table-responsive shadow-sm rounded">
+        <table class="table align-middle mb-0">
+          <thead class="text-white">
+            <tr style="background-color: var(--brand-color)">
+              <th class="py-3 px-3">Uhrzeit / Wert</th>
+              <th class="py-3 text-center">Status</th>
+              <th class="py-3">Notiz</th>
+              <th class="py-3 text-end px-3">Aktionen</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for tag in gruppierte_messungen %}
+            <tr class="table-secondary">
+              <td colspan="4" class="fw-bold py-2">
+                <i class="bi bi-calendar3 me-2"></i> {{
+                tag.datum.strftime('%d.%m.%Y') }}
+                <span class="float-end"
+                  >Tages-Ø: {{ tag.durchschnitt }} mg/dL</span
+                >
+              </td>
+            </tr>
+            {% for m in tag.werte %}
+            <tr class="table-{{ m.get_status_color() }}">
+              <td class="py-3">
+                <span class="text-muted small me-3"
+                  >{{ m.date_mess.strftime('%H:%M') }}</span
+                >
+                <span class="fs-5 fw-bold">{{ m.wert }}</span>
+              </td>
+              <td class="text-center">
+                <!-- Badges mit fester Breite für ein ruhiges Bild -->
+                <span
+                  class="badge {{ 'bg-success' if m.get_status_color() == 'success' else 'bg-danger' }}"
+                  style="width: 80px; padding: 8px"
+                >
+                  {{ "Stabil" if m.get_status_color() == 'success' else
+                  "Achtung!" }}
+                </span>
+              </td>
+              <td style="min-width: 180px">
+                <div
+                  class="input-group input-group-sm rounded-pill px-2 hover-edit-container"
+                >
+                  <span
+                    class="input-group-text bg-transparent border-0 text-muted p-0 me-2"
+                  >
+                    <i
+                      class="bi bi-pencil-fill"
+                      style="font-size: 0.8rem; opacity: 0.5"
+                    ></i>
+                  </span>
+                  <input
+                    type="text"
+                    class="form-control form-control-sm border-0 bg-transparent text-dark shadow-none"
+                    value="{{ m.notiz or '' }}"
+                    onblur="saveNotiz({{ m.mess_id }}, this.value)"
+                    onkeypress="
+                      if (event.key === 'Enter') {
+                        this.blur();
+                      }
+                    "
+                    placeholder="Notiz ergänzen..."
+                  />
+                </div>
+              </td>
+
+              <td
+                class="text-end"
+                style="white-space: nowrap; min-width: 160px"
+              >
+                <a
+                  href="{{ url_for('main.update_messung', mess_id=m.mess_id) }}"
+                  class="btn btn-primary text-white shadow-sm px-2 py-1"
+                  style="font-size: 0.75rem; vertical-align: middle"
+                >
+                  <i class="bi bi-pencil-square"></i> Ändern
+                </a>
+                <a
+                  href="{{ url_for('main.delete_messung', mess_id=m.mess_id) }}"
+                  class="btn btn-danger text-white shadow-sm px-2 py-1"
+                  style="font-size: 0.75rem; vertical-align: middle"
+                  onclick="return confirm('Sicher löschen?');"
+                >
+                  <i class="bi bi-trash"></i> Löschen
+                </a>
+              </td>
+            </tr>
+            {% endfor %} {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <nav aria-label="Messwerte Navigation" class="mt-4">
+  <ul class="pagination justify-content-center shadow-sm">
+    
+    <!-- Zurück Button -->
+    <li class="page-item {% if not messungen.has_prev %}disabled{% endif %}">
+      <a class="page-link" href="{{ url_for('main.werte_liste', page=messungen.prev_num) if messungen.has_prev else '#' }}">
+        <i class="bi bi-chevron-double-left"></i> <span class="d-none d-md-inline">Zurück</span>
+      </a>
+    </li>
+
+    <!-- Aktuelle Seite Info -->
+    <li class="page-item disabled">
+      <span class="page-link bg-light text-dark fw-bold">
+        Seite {{ messungen.page }} von {{ messungen.pages }}
+      </span>
+    </li>
+
+    <!-- Vorwärts Button -->
+    <li class="page-item {% if not messungen.has_next %}disabled{% endif %}">
+      <a class="page-link" href="{{ url_for('main.werte_liste', page=messungen.next_num) if messungen.has_next else '#' }}">
+        <span class="d-none d-md-inline">Weiter</span> <i class="bi bi-chevron-double-right"></i>
+      </a>
+    </li>
+
+  </ul>
+</nav>
+
+
+     <div class="card mb-3 shadow-sm border-0 bg-light">
+  <div class="card-body py-2">
+    <div class="row align-items-center text-center">
+      
+      <!-- Gesamt-Anzahl (Statistik) -->
+      <div class="col-md-3 border-end">
+        <small class="text-muted d-block">Gesamt-Messungen</small>
+        <strong class="text-primary">{{ current_user.mess_stats.anzahl }}</strong>
+      </div>
+
+      <!-- HbA1c (Wichtigster Wert oben) -->
+      <div class="col-md-3 border-end">
+        <small class="text-muted d-block">HbA1c (Langzeit)</small>
+        <span class="badge {% if current_user.mess_stats.hba1c > 7.0 %}bg-danger{% else %}bg-success{% endif %}">
+          {{ current_user.mess_stats.hba1c }} %
+        </span>
+      </div>
+
+      <!-- Aktueller Schnitt -->
+      <div class="col-md-3 border-end">
+        <small class="text-muted d-block">Ø Schnitt (mg/dL)</small>
+        <strong>{{ current_user.mess_stats.schnitt }}</strong>
+      </div>
+
+      <!-- SVNR (Deine neue Property!) -->
+      <div class="col-md-3">
+        <small class="text-muted d-block">Versicherten-Nr.</small>
+        <span class="fw-bold text-dark">{{ current_user.real_svnr }}</span>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+    <!-- Ende col-md-8 -->
+  </div>
+  <!-- Ende row -->
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const ctx = document.getElementById('blutzuckerChart');
+        if (!ctx) return;
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: {{ labels | safe if labels else '[]' }},
+                datasets: [
+                    {
+                        label: 'Blutzucker',
+                        data: {{ werte | safe if werte else '[]' }},
+                        borderColor: '#318fec',
+                        backgroundColor: 'rgba(49, 143, 236, 0.1)',
+                        tension: 0.3,
+                        fill: true,
+                        pointRadius: 4
+                    },
+                    {
+                        label: 'Ø Durchschnitt',
+                        // Hier nutzen wir deine Python-Variable schnitt_linie
+                        data: {{ schnitt_linie | safe if schnitt_linie else '[]' }},
+                        borderColor: '#ff9f40', // Orange
+                        borderDash: [5, 5],    // Gestrichelte Linie
+                        pointRadius: 0,        // Keine Punkte auf der Linie
+                        fill: false,
+                        borderWidth: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        title: { display: true, text: 'mg/dL' }
+                    }
+                }
+            }
+        });
+    });
+
+    function saveNotiz(messId, neuerText) {
+      const inputField = event.target;
+      const container = inputField.closest('.hover-edit-container'); // Findet das umschließende Div
+
+      fetch(`/update_notiz/${messId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ notiz: neuerText })
+      })
+      .then(response => {
+          if (response.ok) {
+              container.classList.add('bg-success', 'text-white'); // Kurz grün einfärben
+              setTimeout(() => {
+                  container.classList.remove('bg-success', 'text-white');
+              }, 500);
+          }
+      });
+  }
+</script>
 {% endblock content %}

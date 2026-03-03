@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">⚠️ Konto endgültig löschen</h4>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        Bist du sicher? Alle deine Daten und Messungen werden unwiderruflich gelöscht.
+                    </p>
+                    
+                    <form id="deleteAccountForm" method="POST" action="{{ url_for('auth.delete_account') }}">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Zur Bestätigung bitte Passwort eingeben:</label>
+                            {{ form.password(class="form-control", placeholder="Dein Passwort") }}
+                            {% for error in form.password.errors %}
+                                <span class="text-danger small">{{ error }}</span>
+                            {% endfor %}
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal">Konto jetzt löschen</button>
+                            <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Abbrechen</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Letzte Warnung!</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        Bist du dir absolut sicher? Diese Aktion kann nicht rückgängig gemacht werden.
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Doch nicht</button>
+        <!-- Erst dieser Button hier schickt das Formular wirklich ab! -->
+        <button type="button" class="btn btn-danger" onclick="document.getElementById('deleteAccountForm').submit();">
+    Ja, alles löschen
+</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

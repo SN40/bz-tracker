@@ -1,8 +1,13 @@
-from flask import Blueprint,render_template,flash,url_for,redirect
-from project.forms import RegistrationForm,LoginForm
-from project.models import User
+from flask import Blueprint,render_template,flash,url_for,redirect,current_app,request
+from project.forms import RegistrationForm,LoginForm,DeleteUserForm,EditProfileForm
+from project.models import User,Mess
 from project import db
 from flask_login import current_user, login_user,logout_user,login_required
+from werkzeug.security import check_password_hash
+import os
+from cryptography.fernet import Fernet
+from sqlalchemy.ext.hybrid import hybrid_property
+
 
 auth_bp = Blueprint('auth', __name__, template_folder="templates")
 
@@ -11,18 +16,31 @@ auth_bp = Blueprint('auth', __name__, template_folder="templates")
 def register():
     form = RegistrationForm()
     if form.validate_on_submit():
-        user = User(username=form.username.data, email=form.email.data)
+         # Hole den Encryptor aus der aktuellen App-Instanz
+        encryptor = current_app.cipher_suite
+        
+        # Verschlüsseln und als String dekodieren für die DB
+        encrypted_svnr = encryptor.encrypt(form.svnr.data.encode()).decode()
+        
+        user = User(
+            title=form.title.data,
+            firstname=form.firstname.data, 
+            lastname=form.lastname.data,
+            email=form.email.data, 
+            svnr=encrypted_svnr
+        )
         user.set_password(form.password.data)
         # Füge neuen Benutzer zur Session hinzu
         db.session.add(user)
         # Den neuen Benutzer in der Datenbank speichern.
         db.session.commit()
-        flash("Ihr Konto wurde erstellt", "success")
+        flash("IhrDein Konto wurde erstellt. - Klicke auf 'Anmelden' um dich einzuloggen.", "success")
         # Umleiten zur Startseite
         return redirect(url_for("main.index"))
     # DEBUG: Wenn du hier landest bei POST, ist das Formular ungültig
     if form.errors:
         print(form.errors) 
+
     return render_template("auth/register.html", title="Registrieren", form=form)
 
 # Route für Login'
@@ -57,3 +75,51 @@ def logout():    # Hier können Sie die Logout-Funktionalität implementieren, z
     logout_user()
     flash("Erfolgreich ausgeloggt", "success")
     return redirect(url_for("main.index"))
+
+@auth_bp.route("/delete_account", methods=["GET", "POST"])
+@login_required
+def delete_account():
+    form = DeleteUserForm()
+    
+    if form.validate_on_submit():
+        if current_user.check_password(form.password.data):
+            db.session.delete(current_user)
+            db.session.commit()
+            logout_user()
+            flash("Dein Konto wurde gelöscht.", "success")
+            return redirect(url_for("main.index"))
+        flash("Passwort falsch.", "danger")
+    
+    # Hier muss das Template gerendert werden, KEIN redirect auf sich selbst!
+    return render_template("auth/delete_account.html", form=form)
+
+# API-Route User-profil bearbeiten
+
+@auth_bp.route("/edit_profile", methods=["GET", "POST"])
+@login_required
+def edit_profile():
+    form = EditProfileForm()
+    
+    if form.validate_on_submit():
+        # POST: Wir holen den TEXT aus dem Formular (.data) 
+        # und speichern ihn in die Datenbank (current_user)
+        current_user.title = form.title.data
+        current_user.firstname = form.firstname.data
+        current_user.lastname = form.lastname.data
+        current_user.email = form.email.data
+        
+        db.session.commit()
+        flash("Profil aktualisiert!", "success")
+        return redirect(url_for('auth.edit_profile'))
+    
+    elif request.method == 'GET':
+        # GET: Wir holen den TEXT aus der Datenbank (current_user)
+        # und schreiben ihn in das Formular-Feld (.data)
+        # HIER DARF KEIN .data hinter current_user stehen!
+        form.title.data = current_user.title
+        form.firstname.data = current_user.firstname
+        form.lastname.data = current_user.lastname
+        form.email.data = current_user.email
+        
+    return render_template("auth/edit_profile.html", form=form)
+

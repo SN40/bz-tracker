@@ -1,57 +1,126 @@
 /* Styling für Body und Schriften */
+/* Ersetze oder ergänze deinen <style> Block oben damit: */
+:root { --brand-color: #318fec; }
+
+.hover-edit-container {
+    transition: all 0.2s ease-in-out;
+    background-color: rgba(0,0,0,0.03) !important; /* Ganz leichter grauer Hintergrund */
+    border: 1px solid transparent !important;
+}
+
+.hover-edit-container:hover {
+    background-color: #ffffff !important; /* Weiß beim Drüberfahren */
+    border: 1px solid var(--brand-color) !important; /* Blauer Rahmen beim Drüberfahren */
+    cursor: text;
+}
+
+.hover-edit-container input:focus {
+    background-color: #ffffff !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+
+
 body {
-    background-color: aliceblue;
-    font-family: sans-serif;
+  background-color: aliceblue;
+  font-family: sans-serif;
+  align-content: center;
+}
+
+h2 {
+  color: #318fec;
+  margin-bottom: 50px;
+  text-align: center;
 }
 
 .hba1c-badge {
-    background-color: white;
-    padding: 20px;
-    border-radius: 15px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    text-align: center;
+  background-color: white;
+  padding: 20px;
+  border-radius: 15px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  text-align: center;
 }
 
-
-.flash-error, .flash-danger { 
-    padding: 10px; margin: 10px 0; border-radius: 4px; 
-    background-color: #f8d7da; color: #721c24; 
+.flash-error,
+.flash-danger {
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 4px;
+  background-color: #f8d7da;
+  color: #721c24;
 }
-.flash-success { 
-    padding: 10px; margin: 10px 0; border-radius: 4px; 
-    background-color: #d4edda; color: #155724; 
+.flash-success {
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 4px;
+  background-color: #d4edda;
+  color: #155724;
 }
 
 .nav-logout-custom {
-    color: #e74c3c !important; 
+  color: #e74c3c !important;
 }
 
 .scroll-table-container {
-    max-height: 450px; /* Deine gewünschte Höhe */
-    overflow-y: auto;
-    border-bottom: 1px solid #dee2e6; /* Optional: Schöner Abschluss */
+  max-height: 450px; /* Deine gewünschte Höhe */
+  overflow-y: auto;
+  border-bottom: 1px solid #dee2e6; /* Optional: Schöner Abschluss */
 }
 
 /* Optional: Fixiert den Tabellenkopf (Header), damit er beim Scrollen oben bleibt */
 .scroll-table-container thead th {
-    position: sticky;
-    top: 0;
-    background-color: #f8f9fa;
-    z-index: 1;
+  position: sticky;
+  top: 0;
+  background-color: #f8f9fa;
+  z-index: 1;
 }
 
 .scroll-table-container {
-    max-height: 600px; /* Entspricht ca. 15-20 Zeilen */
-    overflow-y: auto;
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
+  max-height: 600px; /* Entspricht ca. 15-20 Zeilen */
+  overflow-y: auto;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
 }
 
 /* Fixiert den Tabellenkopf beim Scrollen */
 .scroll-table-container thead th {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    background-color: #318fec; /* Passend zu table-dark */
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: #318fec; /* Passend zu table-dark */
 }
 
+@media print {
+  /* Alles ausblenden, was der Arzt nicht braucht */
+  .navbar,
+  .btn,
+  .pagination,
+  .card:has(form),
+  .toast-container,
+  .d-print-none {
+    display: none !important;
+  }
+
+  /* Tabelle auf die ganze Seite strecken */
+  .col-md-8 {
+    width: 100% !important;
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Schatten und Kartenränder für den Druck entfernen */
+  .shadow-sm {
+    box-shadow: none !important;
+  }
+
+  /* Diagramm (Chart) im Druck groß anzeigen */
+  canvas {
+    max-height: 300px !important;
+  }
+
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+}

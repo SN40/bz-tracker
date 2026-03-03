@@ -133,10 +133,10 @@ def reset_password_request():
                           sender='noreply@deineapp.com',
                           recipients=[user.email])
             msg.body = f'''Hallo,um dein Passwort zurückzusetzen, klicke bitte auf den folgenden Link:
-{reset_url}
+            {reset_url}
 
-Falls du diese Anfrage nicht gestellt hast, kannst du diese E-Mail einfach ignorieren.
-'''
+            Falls du diese Anfrage nicht gestellt hast, kannst du diese E-Mail einfach ignorieren.
+            '''
         # Abschicken!
         mail.send(msg)
         
@@ -171,10 +171,8 @@ def reset_password(token):
             
     # GET-Anfrage: Zeige das Formular
     return render_template('auth/reset_token.html', token=token)
+
 # Test route für die E-Mail-Funktionalität
-
-#from project import mail # Import aus deiner __init__.py
-
 @api_bp.route('/test-mail')
 def test_mail():
     try:

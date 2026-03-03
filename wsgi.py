@@ -1,15 +1,15 @@
-# wsgi.py
-try:
-    from project import create_app
-except ImportError:
-    # Falls der Linter den Pfad nicht findet, hilft oft ein absoluter Pfad-Fix
-    import sys
-    import os
-    sys.path.append(os.getcwd())
-    from project import create_app
+import os
+import sys
+
+# Fügt das aktuelle Verzeichnis zum Python-Pfad hinzu
+basedir = os.path.abspath(os.path.dirname(__file__))
+sys.path.append(basedir)
+
+from project import create_app
 
 app = create_app()
 
 if __name__ == "__main__":
     app.run(debug=True)
-
+    debug_mode = os.environ.get('FLASK_DEBUG', '0') == '1'
+    app.run(debug=debug_mode)

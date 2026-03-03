@@ -1,8 +1,20 @@
-from flask import Blueprint,render_template,url_for,redirect,flash,request
-from project.forms import RegistrationForm,LoginForm,MessungForm
-from flask_login import login_required,current_user
-from project.models import User,Mess
+from datetime import datetime,timedelta
+import io
+import csv
+
+from flask import Blueprint,render_template,url_for,redirect,flash,request,Response,make_response,jsonify,current_app
+from project.forms import RegistrationForm,LoginForm,MessungForm,DeleteUserForm
+from flask_login import login_required,current_user,logout_user
+from project.models import Mess
 from project import db
+import json
+from itertools import groupby   
+from werkzeug.exceptions import RequestEntityTooLarge
+
+
+
+
+
 
 
 #Erstelle ein Blueprint-Objekt
@@ -25,36 +37,69 @@ def dashboard():
 @login_required
 def werte_liste():
     form = MessungForm()
-    
+    page = request.args.get('page', 1, type=int) 
+
+    # 1. SPEICHERN (POST)
     if form.validate_on_submit():
-        # Daten aus dem Formular nehmen
-        neuer_wert = Mess(wert=form.wert.data,notiz=form.notiz.data, user=current_user)
+        neuer_wert = Mess(
+            wert=form.wert.data, 
+            
+            notiz=form.notiz.data, 
+            user_id=current_user.id
+        )
         db.session.add(neuer_wert)
         db.session.commit()
-        
-        flash('Messwert erfolgreich gespeichert!', 'success')
+        flash("Wert erfolgreich gespeichert!", "success")
         return redirect(url_for('main.werte_liste'))
+    
+    # 2. DATEN FÜR DAS DIAGRAMM (Zuerst definieren!)
+    # Wir holen ALLE Messungen für den Chart
+    alle_messungen_query = db.session.execute(
+        db.select(Mess)
+        .where(Mess.user_id == current_user.id)
+        .order_by(Mess.date_mess.desc()) 
+    ).scalars().all()
 
-    
-    # Alle Messungen des aktuellen Nutzers für die Tabelle holen
-    meine_messungen = current_user.messungen.order_by(Mess.date_mess.desc()).all()
-    
-    # return render_template(
-    #     "main/werte.html", 
-    #     form=form, 
-    #     messungen=meine_messungen
-    # )
-    page = request.args.get('page', 1, type=int)
-    
-    # .paginate() statt .all() verwenden (z.B. 10 Einträge pro Seite)
+    # Hier erstellen wir die Listen für das JavaScript
+    chart_werte_liste = [m.wert for m in alle_messungen_query]
+    labels_json = json.dumps([m.date_mess.strftime('%d.%m. %H:%M') for m in alle_messungen_query])
+    werte_json = json.dumps(chart_werte_liste)
+
+    # DURCHSCHNITTSLINIE BERECHNEN
+    if chart_werte_liste:
+        avg = round(sum(chart_werte_liste) / len(chart_werte_liste), 1)
+        schnitt_linie_json = json.dumps([avg] * len(chart_werte_liste))
+    else:
+        schnitt_linie_json = json.dumps([])
+
+    # 3. DATEN FÜR DIE TABELLE (Pagination & Gruppierung)
     pagination = Mess.query.filter_by(user_id=current_user.id)\
-    .order_by(Mess.date_mess.desc())\
-    .paginate(page=page, per_page=10, error_out=False)
+        .order_by(Mess.date_mess.desc())\
+        .paginate(page=page, per_page=10, error_out=False)
 
-    
-    messungen = pagination.items  # Nur die Messungen der aktuellen Seite
-    return render_template('main/werte.html',form=form, messungen=messungen, pagination=pagination
-    )
+    # Für die Gruppierung (Tages-Schnitt) nehmen wir nur die Treffer dieser Seite:
+    messungen_liste = pagination.items 
+
+    gruppierte_fuer_tabelle = []
+    for datum, gruppe in groupby(pagination.items, key=lambda x: x.date_mess.date()):
+        werte = list(gruppe)
+        durchschnitt = round(sum(m.wert for m in werte) / len(werte), 1)
+        gruppierte_fuer_tabelle.append({
+            'datum': datum,
+            'durchschnitt': durchschnitt,
+            'werte': werte,
+            'notiz': werte[0].notiz if werte else None
+        })
+
+    # 4. ALLES ANS TEMPLATE ÜBERGEBEN
+    return render_template("main/werte.html", 
+                           title="Blutzucker Verlauf", 
+                           gruppierte_messungen=gruppierte_fuer_tabelle,
+                           messungen=pagination,
+                           labels=labels_json,
+                           werte=werte_json,
+                           schnitt_linie=schnitt_linie_json,
+                           form=form)
 
 # Delete Route zum löschen von Messungen
 @main_bp.route("/werte/delete/<int:mess_id>", methods=["GET", "POST"]) 
@@ -98,28 +143,245 @@ def update_messung(mess_id):
     return render_template("main/update_messung.html", form=form, messung=messung)
 
 
-# @main_bp.route("/test-setup")
-# def test_setup():
-#     u1 = User(username="Max", email="Max@example.com")
-#     u1.set_password("geheim")
-#     u2 = User(username="Erika", email="erika@example.com")
-#     u2.set_password("geheim")  
-
-#     db.session.add_all([u1, u2])
-#     db.session.commit()  # Damit die IDs zugewiesen werden   
-
-#     # 2. Messwerte zuweisen (über die Beziehung 'messungen')
-#     m1 = Mess(wert=120, user=u1) # Max hat 120
-#     m2 = Mess(wert=95, user=u2)  # Erika hat 95
-#     m3 = Mess(wert=140, user=u1) # Max hat noch einen Wert
+@main_bp.route("/werte/drucken")
+@login_required
+def werte_drucken():
+    # Zeitraum aus der URL holen, Standard sind 30 Tage (4 Wochen)
+    tage = request.args.get('zeitraum', default=30, type=int)
+    start_datum = datetime.now() - timedelta(days=tage)
+     # 1. SVNR für den Druck entschlüsseln
+    # Wir greifen auf den Encryptor zu, den wir in __init__.py an app gebunden haben
+    encryptor = current_app.cipher_suite
+    svnr_anzeige = ""
     
-#     db.session.add_all([m1, m2, m3])
-#     db.session.commit()
+    if current_user.svnr:
+        try:
+            # Versuch die SVNR zu entschlüsseln
+            svnr_anzeige = encryptor.decrypt(current_user.svnr.encode()).decode()
+        except Exception:
+            # Fallback, falls in der DB noch Klartext von alten Tests steht
+            svnr_anzeige = current_user.svnr
+    # 2. Deine bestehende Logik für die Messwerte
+    # Nur Messwerte ab dem Startdatum für den aktuellen User laden
+    alle_messungen = Mess.query.filter(
+        Mess.user_id == current_user.id,
+        Mess.date_mess >= start_datum
+    ).order_by(Mess.date_mess.asc()).all()
 
-#     # 3. Kontrolle im Log
-#     ausgabe = ""
-#     for user in [u1, u2]:
-#         ausgabe += f"User {user.username} hat {user.messungen.count()} Messung(en): "
-#         ausgabe += ", ".join([str(m.wert) for m in user.messungen]) + "<br>"
+    gruppiert = []
+    # Gruppierung nach Kalendertag
+    for datum, gruppe in groupby(alle_messungen, key=lambda x: x.date_mess.date()):
+        werte = list(gruppe)
+        # Hier wichtig: 'durchschnitt' (nicht 'schnitt') passend zum Template
+        durchschnitt = round(sum(m.wert for m in werte) / len(werte), 1)
+        gruppiert.append({
+            'datum': datum, 
+            'durchschnitt': durchschnitt, 
+            'werte': werte
+            
+        })
+
+        # --- NEU: Berechnung für die Grafik ---
+    total = len(alle_messungen)
+    stats_prozent = None
     
-#     return ausgabe
+    # --- KORREKTUR: Berechnung für die Grafik ---
+    total = len(alle_messungen)
+    stats_prozent = None
+
+    if total > 0:
+        # WICHTIG: Nutze 'alle_messungen' statt 'werte'
+        tief = len([m for m in alle_messungen if m.wert < 70])
+        ziel = len([m for m in alle_messungen if 70 <= m.wert <= 139])
+        erhoeht = len([m for m in alle_messungen if 140 <= m.wert <= 179])
+        hoch = len([m for m in alle_messungen if m.wert >= 180])
+        
+        stats_prozent = {
+            'hoch': round((hoch / total) * 100),
+            'erhoeht': round((erhoeht / total) * 100),
+            'ziel': round((ziel / total) * 100),
+            'tief': round((tief / total) * 100),
+            'gesamt_anzahl': total
+        }
+    else:
+        # Fallback für leere Listen
+        stats_prozent = {'tief': 0, 'ziel': 0, 'erhoeht': 0, 'hoch': 0, 'gesamt_anzahl': 0}
+            # Aufruf der Property OHNE Klammern (), da @property im Model steht
+    entschluesselte_nummer = current_user.real_svnr     
+    return render_template("main/druckansicht.html", 
+                            gruppierte_messungen=gruppiert, 
+                            heute=datetime.now(),
+                            svnr=entschluesselte_nummer,
+                            zeitraum=tage,
+                            stats=stats_prozent) 
+
+@main_bp.route('/download_csv')
+@login_required
+def download_csv():
+    # 1. Zeitraum aus der URL holen (Standard: Alle Werte, falls kein Parameter)
+    tage = request.args.get('zeitraum', type=int)
+    
+    query = Mess.query.filter_by(user_id=current_user.id)
+    
+    if tage:
+        start_datum = datetime.now() - timedelta(days=tage)
+        query = query.filter(Mess.date_mess >= start_datum)
+        date_info = f"_{tage}tage"
+    else:
+        date_info = "_gesamt"
+
+    messungen = query.order_by(Mess.date_mess.desc()).all()
+    
+    # 2. In-Memory Datei erstellen
+    si = io.StringIO()
+    cw = csv.writer(si)
+    cw.writerow(['Datum', 'Wert', 'Notiz'])
+    
+    for m in messungen:
+        zeit_string = m.date_mess.strftime('%Y-%m-%d %H:%M:%S')
+        cw.writerow([zeit_string, m.wert, m.notiz])
+
+    # 3. Response mit dynamischem Dateinamen
+    output = make_response(si.getvalue())
+    filename = f"blutzucker_backup{date_info}_{datetime.now().strftime('%Y%m%d')}.csv"
+    output.headers["Content-Disposition"] = f"attachment; filename={filename}"
+    output.headers["Content-type"] = "text/csv"
+    
+    return output
+
+# API-Route für file Upload (CSV Import)
+@main_bp.route('/upload_csv', methods=['POST'])
+@login_required
+def upload_csv():
+    neu = 0
+    uebersprungen = 0
+    
+    # 1. Prüfen, ob "Alte löschen" ausgewählt wurde
+    should_delete = 'delete_old' in request.form
+    
+    file = request.files.get('file')
+    if not file:
+        return redirect(url_for('main.werte'))
+
+    # Falls "Löschen" gewählt wurde: Alle Messwerte des Users entfernen
+    if should_delete:
+        Mess.query.filter_by(user_id=current_user.id).delete()
+        db.session.commit() # Sofort committen, um Platz für Neues zu machen
+
+    stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
+    reader = csv.DictReader(stream)
+
+    for row in reader:
+        try:
+            # Daten parsen (wie gehabt)
+            raw_date = row.get('Datum') or row.get('datum')
+            csv_date = datetime.strptime(raw_date, '%Y-%m-%d %H:%M:%S')
+            wert = int(row.get('Wert') or row.get('wert'))
+
+            # Falls NICHT gelöscht wurde, prüfen wir auf Dubletten
+            existiert = None
+            if not should_delete:
+                existiert = Mess.query.filter_by(
+                    date_mess=csv_date, 
+                    wert=wert, 
+                    user_id=current_user.id
+                ).first()
+
+            if existiert:
+                uebersprungen += 1
+            else:
+                new_mess = Mess(
+                    date_mess=csv_date,
+                    wert=wert,
+                    notiz=row.get('Notiz', ''),
+                    user_id=current_user.id
+                )
+                db.session.add(new_mess)
+                neu += 1
+        except Exception as e:
+            continue
+
+    db.session.commit()
+    flash(f"Fertig! ✅ {neu} neu, ℹ️ {uebersprungen} übersprungen.", "success")
+
+    return redirect(url_for('main.werte_liste'))
+
+
+@main_bp.route('/update_notiz/<int:mess_id>', methods=['POST'])
+@login_required
+def update_notiz(mess_id):
+    data = request.get_json()
+    messung = Mess.query.get_or_404(mess_id)
+    
+    # Sicherstellen, dass die Messung auch dem User gehört!
+    if messung.user_id != current_user.id:
+        return {"status": "error", "message": "Nicht erlaubt"}, 403
+        
+    messung.notiz = data.get('notiz', '')
+    db.session.commit()
+    return {"status": "success"}, 200
+
+# API-Route Bestättigung zum Löschen des Benutzerkontos
+main_bp.route('/account/delete', methods=['GET', 'POST'])
+@login_required
+def delete_account():
+    form = DeleteUserForm()
+
+    if form.validate_on_submit():
+         # Benutzer per email nachschlagen
+        user = db.session.scalar(db.select(User).where(User.email == form.email.data))
+
+        # Überprüfen ob der Benutzer existiert und das Passwort korrekt ist.
+        if user is None or not user.check_password(form.password.data):
+            flash("Ungültige E-Mail oder Passwort", "error")
+            return redirect(url_for("auth.login"))
+        if current_user.is_authenticated:
+            return redirect(url_for('main.index'))
+        # Die Remember-me-Funktionalität könnte hier implementiert werden, z.B. mit Flask-Login.
+        logout_user(user)
+        # Wenn die Anmeldeinformationen korrekt sind, können Sie den Benutzer anmelden.
+        flash("Erfolgreich eingeloggt", "success")
+        return redirect(url_for("main.werte_liste"))
+    # DEBUG: Wenn du hier landest bei POST, ist das Formular ungültig
+    if form.errors:
+        print(form.errors) 
+
+    return render_template("auth/login.html", title="Login",form=form)
+
+
+    if request.method == 'POST':
+        # Optional: Passwort zur Sicherheit erneut abfragen
+        password = request.form.get('password')
+        if not current_user.check_password(password):
+            flash("Passwort falsch!")
+            return redirect(url_for('delete_account'))
+
+        user = current_user
+        
+        # 1. User ausloggen, damit die Session ungültig wird
+        logout_user()
+        
+        # 2. User aus der Datenbank löschen
+        db.session.delete(user)
+        db.session.commit()
+
+        flash("Dein Konto wurde erfolgreich gelöscht.")
+        return redirect(url_for('main.index'))
+
+    # Zeigt bei GET die Sicherheitsabfrage (Template)
+    return render_template('confirm_delete.html')
+
+
+# API-Route Warnung und das Passwort-Feld
+@main_bp.route("/settings/delete",methods=["GET","POST"])
+def settings_delete():
+    pass
+
+@main_bp.errorhandler(413)
+@main_bp.errorhandler(RequestEntityTooLarge)
+def handle_file_too_large(e):
+    flash("Die Datei ist zu groß! Maximal 2 MB erlaubt.", "danger")
+    return redirect(url_for('main.werte_liste')), 413
+
+# API-Route zum Aktualisieren der Notiz einer Messung (AJAX)
+

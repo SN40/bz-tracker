@@ -1,79 +1,163 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <!-- Lokaler Link zu Bootstrap -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Lokales CSS -->
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/bootstrap.min.css') }}"
+    />
+
+    <!-- Kopiere diese Zeile exakt so in deinen <head> Bereich -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+
     <title>{% block title %}{% endblock %}</title>
-</head>
-<body>
-
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-    <div class="container">
-        <!-- Das Logo/Brand -->
+  </head>
+  <body>
+    <!-- Navbar (unverändert) -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 shadow-sm">
+      <div class="container">
         <a class="navbar-brand fw-bold d-flex align-items-center" href="/">
-    <!-- Roter Bluttropfen als SVG -->
-    <svg xmlns="http://www.w3.org" width="24" height="24" fill="red" class="bi bi-droplet-fill me-2" viewBox="0 0 16 16">
-        <path fill-rule="evenodd" d="M8 16a6 6 0 0 0 6-6c0-1.655-1.122-2.904-2.432-4.362C10.254 4.176 8.75 2.503 8 0c-.75 2.503-2.254 4.176-3.568 5.638C3.122 7.096 2 8.345 2 10a6 6 0 0 0 6 6m0-2a4 4 0 1 1 0-8c.38 1.278 1.16 2.514 2.105 3.565.852.947 1.895 2.033 1.895 3.435q0 .124-.015.244A2.9 2.9 0 0 1 8 14"/>
-    </svg>
-    <span>BZ-Tracker</span>
-</a>
-
-        <!-- Der Burger-Button für mobil (Wichtig!) -->
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navContent">
-            <span class="navbar-toggler-icon"></span>
+          <svg
+            xmlns="http://www.w3.org"
+            width="24"
+            height="24"
+            fill="red"
+            class="bi bi-droplet-fill me-2"
+            viewBox="0 0 16 16"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M8 16a6 6 0 0 0 6-6c0-1.655-1.122-2.904-2.432-4.362C10.254 4.176 8.75 2.503 8 0c-.75 2.503-2.254 4.176-3.568 5.638C3.122 7.096 2 8.345 2 10a6 6 0 0 0 6 6m0-2a4 4 0 1 1 0-8c.38 1.278 1.16 2.514 2.105 3.565.852.947 1.895 2.033 1.895 3.435q0 .124-.015.244A2.9 2.9 0 0 1 8 14"
+            />
+          </svg>
+          <span>BZ-Tracker</span>
+        </a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navContent"
+        >
+          <span class="navbar-toggler-icon"></span>
         </button>
-
-        <!-- Die Box, die auf "Nebeneinander" schaltet (navbar-collapse) -->
         <div class="collapse navbar-collapse" id="navContent">
-            <ul class="navbar-nav ms-auto align-items-center">
-                {% if current_user.is_authenticated %}
-                    <li class="nav-item">
-                        <a class="nav-link px-3" href="{{ url_for('main.werte_liste') }}">Messwerte</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link px-3 text-warning" href="{{ url_for('auth.logout') }}">Abmelden</a>
-                    </li>
-                {% else %}
-                    <li class="nav-item">
-                        <a class="nav-link px-3" href="{{ url_for('auth.login') }}">Anmelden</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link px-3" href="{{ url_for('auth.register') }}">Registrieren</a>
-                    </li>
-                {% endif %}
-            </ul>
+          <ul class="navbar-nav ms-auto align-items-center">
+            {% if current_user.is_authenticated %}
+            <li class="nav-item">
+              <a class="nav-link px-3" href="{{ url_for('main.werte_liste') }}"
+                >Messwerte</a
+              >
+            </li>
+
+            <!-- NEU: Link zum Profil bearbeiten -->
+            <li class="nav-item">
+              <a class="nav-link px-3 d-flex align-items-center" href="{{ url_for('auth.edit_profile') }}">
+                <i class="bi bi-person-circle me-1"></i> Profil
+              </a>
+            </li>
+
+            <li class="nav-item">
+              <a class="nav-link px-3 text-warning" href="{{ url_for('auth.logout') }}">Abmelden</a>
+            </li>
+            </li>
+            {% else %}
+            <li class="nav-item">
+              <a class="nav-link px-3" href="{{ url_for('auth.login') }}"
+                >Anmelden</a
+              >
+            </li>
+            <li class="nav-item">
+              <a class="nav-link px-3" href="{{ url_for('auth.register') }}"
+                >Registrieren</a
+              >
+            </li>
+            {% endif %}
+          </ul>
         </div>
+      </div>
+    </nav>
+
+    <!-- Toast-Behälter -->
+    <!-- Flash Messages Container -->
+    <div class="container mt-3">
+      {% with messages = get_flashed_messages(with_categories=true) %} {% if
+      messages %} {% for category, message in messages %}
+      <div
+        class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show shadow-sm"
+        role="alert"
+      >
+         {{ message | safe }} <!-- HTML-Inhalt wird korrekt gerendert -->
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="alert"
+          aria-label="Close"
+        ></button>
+      </div>
+      {% endfor %} {% endif %} {% endwith %}
     </div>
-</nav>
 
-<div class="container mt-3">
-    {# Abrufen der Flash-Nachrichten aus der Session #}
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                {# Bootstrap Mapping: 'error' (aus deiner Route) wird zu 'danger' (rot) #}
-                {% set alert_class = 'danger' if category == 'error' else category %}
-                
-                <div class="alert alert-{{ alert_class }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-</div>
-<div class="container">
-    {% block content %}{% endblock %}
-    <hr>
-    <footer>&copy 2026  Schwarz Norbert</footer>
-</div>
+   
 
-<!-- Bootstrap JS (für das Burger-Menü) -->
-<script src="https://cdn.jsdelivr.net"></script>
-</body>
+    <div class="container pb-5">
+      {% block content %}{% endblock %}
+      <hr />
+      <footer class="text-center text-muted">
+        &copy; 2026 Schwarz Norbert
+      </footer>
+    </div>
 
+    <!-- WICHTIG: VOLLSTÄNDIGER LINK ZUM BOOTSTRAP-PROGRAMM -->
+    <!-- 1. Bibliotheken laden -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.min.js"></script>
+
+    <!-- 2. Deine Toast-Logik (unabhängig) -->
+    <script>
+      window.addEventListener("load", function () {
+        var box = document.getElementById("toast-box");
+        if (box && box.style.display === "block") {
+          setTimeout(function () {
+            box.style.opacity = "0";
+            box.style.transition = "opacity 1s ease";
+            setTimeout(function () {
+              box.style.display = "none";
+            }, 1000);
+          }, 5000);
+        }
+      });
+    </script>
+       
+    <script>
+      function saveNotiz(id, text) {
+         // Das hier MUSS in der Konsole erscheinen, sobald du aus dem Feld klickst:
+    console.log("Versuche zu speichern: ID=" + id + " Text=" + text);
+          fetch(`/update_notiz/${id}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ notiz: text })
+          })
+          .then(response => {
+             console.log("Antwort vom Server: ", response.status);
+              if (response.ok) {
+            console.log("✅ Erfolgreich in DB gespeichert!");
+        } else {
+            console.error("❌ Fehler beim Speichern!");
+        }
+    })
+    .catch(error => console.error("⚠️ Netzwerkfehler:", error));
+}
+    </script>
+  </body>
 </html>
+
+
+  

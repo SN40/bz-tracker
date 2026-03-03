@@ -8,11 +8,50 @@
         {{form.hidden_tag()}}
 
         <div>
-            {{form.username.label}}<br>
-            {{form.username(size=20)}}
-            {% if form.username.errors %}
+            {{form.title.label}}<br>
+            {{form.title(size=20)}}
+            {% if form.title.errors %}
             <ul>
-                {% for error in form.username.errors  %}
+                {% for error in form.title.errors  %}
+                <li>{{error}}</li>
+                {% endfor %}
+            </ul>
+                
+            {% endif %}
+        </div>
+
+        <div>
+            {{form.firstname.label}}<br>
+            {{form.firstname(size=20)}}
+            {% if form.firstname.errors %}
+            <ul>
+                {% for error in form.firstname.errors  %}
+                <li>{{error}}</li>
+                {% endfor %}
+            </ul>
+                
+            {% endif %}
+        </div>
+
+        <div>
+            {{form.lastname.label}}<br>
+            {{form.lastname(size=20)}}
+            {% if form.lastname.errors %}
+            <ul>
+                {% for error in form.lastname.errors  %}
+                <li>{{error}}</li>
+                {% endfor %}
+            </ul>
+                
+            {% endif %}
+        </div>
+
+        <div>
+            {{form.svnr.label}}<br>
+            {{form.svnr(size=20)}}
+            {% if form.svnr.errors %}
+            <ul>
+                {% for error in form.svnr.errors  %}
                 <li>{{error}}</li>
                 {% endfor %}
             </ul>

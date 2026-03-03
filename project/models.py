@@ -1,6 +1,10 @@
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from . import db
+from datetime import datetime, timezone
+import pytz
+from flask import current_app
+
 
 #from project import db    # Importiere das db-Objekt aus der __init__.py
 from datetime import datetime, timezone
@@ -8,10 +12,14 @@ from datetime import datetime, timezone
 # Definiere das User-Modell
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
+    title = db.Column(db.String(50), nullable = False)
+    firstname = db.Column(db.String(80),nullable=False)
+    lastname = db.Column(db.String(80), nullable =False)
+    svnr = db.Column(db.String(255), unique=True, nullable=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256))
-    messungen = db.relationship('Mess', back_populates='user', lazy="dynamic")
+
+    messungen = db.relationship('Mess', back_populates='user', lazy="dynamic",cascade="all, delete-orphan")
 
     @property
     def mess_stats(self):
@@ -39,6 +47,20 @@ class User(UserMixin, db.Model):
             'schnitt': round(durchschnitt, 1),
             'hba1c': round(hba1c_wert, 2)
         }
+    @property
+    def real_svnr(self):
+        """Entschlüsselt die SVNR live für die Anzeige."""
+        if not self.svnr:
+            return "Nicht angegeben"
+        
+        try:
+            # Greift auf die cipher_suite aus deiner __init__.py zu
+            encryptor = current_app.cipher_suite
+            # Von String zu Bytes -> Entschlüsseln -> Zurück zu String
+            return encryptor.decrypt(self.svnr.encode()).decode()
+        except Exception:
+            # Falls in der DB noch Klartext steht, gib diesen zurück
+            return self.svnr
 
 
     def set_password(self, password):
@@ -52,11 +74,16 @@ class User(UserMixin, db.Model):
     
 # Definiere das Mess-Modell
 class Mess(db.Model):
+    def get_berlin_time():
+        return datetime.now(pytz.timezone('Europe/Berlin'))
+    
     mess_id = db.Column(db.Integer, primary_key=True)
-    date_mess = db.Column(db.DateTime, default=datetime.now, nullable=False) # Aktuelles Datum mit Zeitzone
+    #date_mess = db.Column(db.DateTime, default=datetime.now(timezone.utc), nullable=False) # Aktuelles Datum mit Zeitzone
+    date_mess = db.Column(db.DateTime, default=get_berlin_time, nullable=False) # Aktuelles Datum mit Zeitzone
+    
     wert = db.Column(db.Integer,nullable=False)
     notiz = db.Column(db.String(200),nullable=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete="CASCADE"), nullable=False)
     user = db.relationship('User', back_populates='messungen')
 
     def __repr__(self):
@@ -72,3 +99,5 @@ class Mess(db.Model):
             return "warning"  # Gelb für leicht erhöht
         else:
             return "danger"   # Rot für Hyper (>180)
+        
+    

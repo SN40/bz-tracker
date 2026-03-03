@@ -1,25 +1,27 @@
-text
-# Virtuelle Umgebung (sehr groß, Pfade PC-spezifisch)
+# Sensible Daten
+.env
+
+# Python virtuelle Umgebung
 venv/
 .venv/
 env/
-.env
-__pycache__/
-instance/
-.vscode/
-*.pyc
 
-
-# Python Cache-Dateien (werden automatisch neu erstellt)
-__pycache__/
+# Python Cache
+**/__pycache__/
 *.py[cod]
 *$py.class
-__pycache__/
-*.pyc
-instance/
-.venv/
+
+# IDE Einstellungen
+.vscode/
+.idea/
+
+# Betriebssystem-Dateien
+Thumbs.db
+.DS_Store
+
 
 
 # Datenbank (meist lokal unterschiedlich)
+database.db
 *.sqlite3
 instance/

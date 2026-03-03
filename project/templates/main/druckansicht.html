@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/bootstrap.min.css') }}"
+    />
+    <style>
+
+      body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        background: white !important;
+        font-family: Arial, sans-serif;
+        font-size: 10px;
+      }
+      .print-header {
+        border-bottom: 2px solid #318fec;
+        margin-bottom: 30px;
+        padding-bottom: 10px;
+      }
+      .patient-info {
+        margin-bottom: 20px;
+        font-size: 1.1rem;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+      th {
+        background-color: #318fec !important;
+        color: white !important;
+        padding: 10px;
+        text-align: left;
+      }
+      td {
+        padding: 8px;
+        border-bottom: 1px solid #dee2e6;
+      }
+
+      .tag-header {
+        background-color: #f1f8ff !important;
+        font-weight: bold;
+        color: #318fec;
+      }
+
+      @media print {
+        .no-print {
+          display: none;
+        }
+        tr {
+          page-break-inside: avoid;
+        }
+        @page {
+          margin: 1.5cm;
+        }
+      }
+
+      @media print {
+    /* Erzwingt Farben für ALLE Elemente mit Hintergrundfarben */
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+    
+      /* Verhindert, dass der Balken auf zwei Seiten zerschnitten wird */
+      .progress, .mb-4 {
+        page-break-inside: avoid;
+      }
+    }
+
+    
+
+ 
+  /* ÖDG Farbschema Definitionen */
+  :root {
+    --oedg-low: #007bff;      /* Blau: < 70 */
+    --oedg-target: #28a745;   /* Grün: 70-139 */
+    --oedg-elevated: #fd7e14; /* Orange: 140-179 */
+    --oedg-high: #dc3545;     /* Rot: >= 180 */
+    
+    /* Hellere Varianten für Zeilenhintergründe */
+    --bg-low: #d1ecf1;
+    --bg-target: #d4edda;
+    --bg-elevated: #fff3cd;
+    --bg-high: #f8d7da;
+  }
+
+  @media print {
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+  }
+  @media print {
+  footer {
+    page-break-inside: avoid; /* Verhindert Umbruch mitten in der Fußzeile */
+  }
+  .legende-container {
+    border-top: 2px solid #318fec;
+    padding-top: 15px;
+    margin-top: 20px;
+  }
+}
+
+  /* Klassen für die Legende und Texte */
+  .text-oedg-low { color: #004085 !important; }
+  .text-oedg-target { color: #155724 !important; }
+  .text-oedg-elevated { color: #856404 !important; font-weight: bold; }
+  .text-oedg-high { color: #721c24 !important; font-weight: bold; }
+</style>
+
+    
+  </head>
+  <body onload="window.print()">
+    <div class="container mt-4">
+      <!-- Kopfzeile wie ein offizielles Dokument -->
+      <div class="print-header d-flex justify-content-between align-items-end">
+        <div>
+          <h1 class="text-primary mb-0">Blutzucker-Protokoll</h1>
+          <p class="text-muted mb-0">
+            Exportiert am: {{ heute.strftime('%d.%m.%Y %H:%M') }}
+          </p>
+         <p>Blutzucker-Protokoll (Letzte {{ zeitraum }} Tage)</p> 
+        </div>
+        <div class="text-end">
+          <h4 class="mb-0">BZ-Tracker System</h4>
+        </div>
+      </div>
+
+      <!-- Patienten-Daten -->
+       <!-- In der druckansicht.html oben bei den Patientendaten -->
+      <div class="row mt-3">
+          <div class="col-4"><strong>Zeitraum:</strong> {{ zeitraum }} Tage</div>
+          <div class="col-4"><strong>Messungen:</strong> {{ gruppierte_messungen|length }} Tage dokumentiert</div>
+          <div class="col-4"><strong>Druckdatum:</strong> {{ heute.strftime('%d.%m.%Y') }}</div>
+      </div>
+
+      <div class="patient-info border p-3 rounded bg-light">
+        <div class="row">
+          <div class="col-6">
+            <strong>Name:</strong> {{ current_user.title }}<br> {{ current_user.firstname }} {{ current_user.lastname }}
+          </div>
+          <div class="col-6">
+            <!-- Falls du ein Feld 'versichertennummer' im Model hast, sonst Platzhalter -->
+            
+            <div class="col-6">
+                <div style="border-left: 4px solid #007bff; padding-left: 10px;">
+                    <small class="text-muted d-block">Österr. Sozialversicherungsnummer</small>
+                    <strong style="font-size: 1.3em; letter-spacing: 2px;">{{ svnr }}</strong>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% if stats %}
+<div class="mb-4 p-3 border rounded bg-light">
+    <h5 class="mb-3">Statistische Auswertung ({{ stats.gesamt_anzahl }} Messungen)</h5>
+    
+    <!-- Kombinierter Balken -->
+    <div style="display: flex; width: 100%; height: 35px; border-radius: 5px; overflow: hidden; border: 1px solid #ccc;">
+        {% if stats.tief > 0 %}
+        <div style="width: {{ stats.tief }}%; background-color: var(--bg-low) !important; color: #004085; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+            {{ stats.tief }}%
+        </div>
+        {% endif %}
+
+        {% if stats.ziel > 0 %}
+        <div style="width: {{ stats.ziel }}%; background-color: var(--bg-target) !important; color: #155724; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+            {{ stats.ziel }}% Ziel
+        </div>
+        {% endif %}
+
+        {% if stats.erhoeht > 0 %}
+        <div style="width: {{ stats.erhoeht }}%; background-color: var(--bg-elevated) !important; color: #856404; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+            {{ stats.erhoeht }}%
+        </div>
+        {% endif %}
+
+        {% if stats.hoch > 0 %}
+        <div style="width: {{ stats.hoch }}%; background-color: var(--bg-high) !important; color: #721c24; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+            {{ stats.hoch }}%
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Die Legende direkt darunter -->
+    <div class="d-flex justify-content-between mt-2 px-1">
+        <small class="text-oedg-low">● Blau: < 70 (Niedrig)</small>
+        <small class="text-oedg-target">● Grün: 70-139 (Ziel)</small>
+        <small class="text-oedg-elevated">● Orange: 140-179 (Erhöht)</small>
+        <small class="text-oedg-high">● Rot: ≥ 180 (Hoch)</small>
+    </div>
+</div>
+{% endif %}
+
+
+      <table>
+        <thead>
+          <tr>
+            <th>Uhrzeit</th>
+            <th>Messwert (mg/dL)</th>
+            <th>Notiz / Ereignis</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for tag in gruppierte_messungen %}
+          <tr class="tag-header">
+            <td colspan="2">
+              <i class="bi bi-calendar-event"></i> {{
+              tag.datum.strftime('%d.%m.%Y') }}
+            </td>
+            <td class="text-end" 
+                style="padding: 8px; 
+                {% if tag.durchschnitt >= 150 %} background-color: #f8d7da; 
+                {% elif tag.durchschnitt >= 125 %} background-color: #fff3cd; 
+                {% endif %}">
+                
+                Tages-Schnitt: 
+                <strong style="font-size: 1.1em; 
+                    {% if tag.durchschnitt >= 150 %} color: #dc3545; 
+                    {% elif tag.durchschnitt >= 125 %} color: #856404; 
+                    {% endif %}">
+                    {{ tag.durchschnitt }} mg/dL
+                </strong>
+            </td>
+          </tr>
+          {% for m in tag.werte %}
+          {# Wir prüfen den Wert, um die Hintergrundfarbe der gesamten Zeile zu bestimmen #}
+          <tr {% if m.wert >= 180 %}
+        style="background-color: #f8d7da;" {# Hellrot für Gefahr #}
+    {% elif m.wert >= 140 %}
+        style="background-color: #fff3cd;" {# Hellorange/Gelb für Warnung #}
+    {% elif m.wert < 70 %}
+        style="background-color: #d1ecf1;" {# Hellblau für Niedrig #}
+    {% endif %}>
+    
+    <td style="padding: 5px;">{{ m.date_mess.strftime('%H:%M') }} Uhr</td>
+    
+    <td style="padding: 5px;">
+        {% if m.wert >= 180 %}
+            <strong style="color: #dc3545;">{{ m.wert }}</strong> <small><strong>(Hoch!)</strong></small>
+        {% elif m.wert >= 140 %}
+            <strong style="color: #856404;">{{ m.wert }}</strong> <small><strong>(Erhöht!)</strong></small> {# Dunkleres Orange für bessere Lesbarkeit #}
+        {% elif m.wert < 70 %}
+            <strong style="color: #004085;">{{ m.wert }}</strong> <small><strong>(Niedrig!)</strong></small>
+        {% else %}
+            <strong>{{ m.wert }}</strong>
+        {% endif %}
+        mg/dL
+    </td>
+    
+    <td style="padding: 5px;">{{ m.notiz if m.notiz else '-' }}</td>
+</tr>
+
+          {% endfor %} {% endfor %}
+        </tbody>
+      </table>
+
+      <footer class="mt-5 text-center text-muted small">
+        <hr />
+        <p>
+          Dieses Dokument wurde automatisch erstellt und dient der Dokumentation
+          für den behandelnden Arzt.
+        
+        <div class="legende-container">
+          <p class="mb-2"><strong>Legende der Grenzwerte (ÖDG-Standard):</strong></p>
+          <div class="d-flex justify-content-between border p-2 rounded bg-light">
+            <span class="text-oedg-high">● Rot (Hoch): ≥ 180 mg/dL</span>
+            <span class="text-oedg-elevated">● Orange (Erhöht): 140 - 179 mg/dL</span>
+            <span class="text-oedg-target">● Grün (Zielbereich): 70 - 139 mg/dL</span>
+            <span class="text-oedg-low">● Blau (Niedrig): < 70 mg/dL</span>
+          </div>
+        </div>
+
+        <div class="mt-4 text-center">
+          <p>Dieses Dokument wurde automatisch erstellt und dient der Dokumentation für den behandelnden Arzt.</p>
+          <p class="mb-0">&copy; {{ heute.year }} Schwarz Norbert | BZ-Tracker System</p>
+        </div>
+      </footer>
+    </div> <!-- Ende Container -->
+     
+        
+      </footer>
+    </div>
+  </body>
+</html>
