@@ -3,6 +3,7 @@
 
 # Python virtuelle Umgebung
 venv/
+bz-venv/
 .venv/
 env/
 
@@ -10,6 +11,7 @@ env/
 **/__pycache__/
 *.py[cod]
 *$py.class
+*.pyc
 
 # IDE Einstellungen
 .vscode/
@@ -25,3 +27,5 @@ Thumbs.db
 database.db
 *.sqlite3
 instance/
+*.db
+instance/*.db
