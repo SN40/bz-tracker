@@ -10,6 +10,7 @@ from sqlalchemy import MetaData
 
 # 1. Pfad und Umgebung laden
 basedir = os.path.abspath(os.path.dirname(__file__))
+database_path = os.path.join(basedir, '..', 'instance', 'database.db')
 load_dotenv()
 
 # 2. Extensions definieren (noch ohne App)
@@ -37,8 +38,7 @@ def create_app():
     app.config['SECRET_KEY_ENCRYPTION'] = os.environ.get('FERNET_KEY')
    
     # Pfad zur Datenbank
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL') or \
-        'sqlite:///' + os.path.join(basedir, 'database.db')
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.abspath(database_path)
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
     # Mail
@@ -47,7 +47,7 @@ def create_app():
     app.config['MAIL_USE_TLS'] = True
     app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
     app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
-
+    print(f"--- KONTROLLE: Datenbank-Pfad ist: {app.config.get('SQLALCHEMY_DATABASE_URI')} ---")
     # --- Initialisierung ---
     db.init_app(app)
     mail.init_app(app)
