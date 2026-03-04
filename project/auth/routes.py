@@ -7,6 +7,8 @@ from werkzeug.security import check_password_hash
 import os
 from cryptography.fernet import Fernet
 from sqlalchemy.ext.hybrid import hybrid_property
+import hashlib
+
 
 
 auth_bp = Blueprint('auth', __name__, template_folder="templates")
@@ -16,10 +18,21 @@ auth_bp = Blueprint('auth', __name__, template_folder="templates")
 def register():
     form = RegistrationForm()
     if form.validate_on_submit():
-         # Hole den Encryptor aus der aktuellen App-Instanz
-        encryptor = current_app.cipher_suite
+        # 1. E-Mail Check (wie bisher)
+        if User.query.filter_by(email=form.email.data).first():
+            flash("Diese E-Mail-Adresse wird bereits verwendet.", "danger")
+            return render_template("auth/register.html", form=form)
+
+        # 2. SVNR-Hash Check (DER TURBO!)
+        # Wir hashen die Eingabe sofort, um in der DB danach zu suchen
+        input_hash = hashlib.sha256(form.svnr.data.encode()).hexdigest()
         
-        # Verschlüsseln und als String dekodieren für die DB
+        if User.query.filter_by(svnr_hash=input_hash).first():
+            flash("Diese SVNR ist bereits registriert.", "danger")
+            return render_template("auth/register.html", form=form)
+
+        # 3. Wenn beide Checks okay sind -> Verschlüsseln & Speichern
+        encryptor = current_app.cipher_suite
         encrypted_svnr = encryptor.encrypt(form.svnr.data.encode()).decode()
         
         user = User(
@@ -27,19 +40,16 @@ def register():
             firstname=form.firstname.data, 
             lastname=form.lastname.data,
             email=form.email.data, 
-            svnr=encrypted_svnr
+            svnr=encrypted_svnr,      # Für die Anzeige (Safe)
+            svnr_hash=input_hash     # Für die Suche (Fingerabdruck)
         )
         user.set_password(form.password.data)
-        # Füge neuen Benutzer zur Session hinzu
+        
         db.session.add(user)
-        # Den neuen Benutzer in der Datenbank speichern.
         db.session.commit()
-        flash("IhrDein Konto wurde erstellt. - Klicke auf 'Anmelden' um dich einzuloggen.", "success")
-        # Umleiten zur Startseite
-        return redirect(url_for("main.index"))
-    # DEBUG: Wenn du hier landest bei POST, ist das Formular ungültig
-    if form.errors:
-        print(form.errors) 
+        
+        flash("Registrierung erfolgreich! Bitte melde dich an.", "success")
+        return redirect(url_for('auth.login'))
 
     return render_template("auth/register.html", title="Registrieren", form=form)
 
@@ -99,27 +109,50 @@ def delete_account():
 @login_required
 def edit_profile():
     form = EditProfileForm()
-    
+    encryptor = current_app.cipher_suite
+
     if form.validate_on_submit():
-        # POST: Wir holen den TEXT aus dem Formular (.data) 
-        # und speichern ihn in die Datenbank (current_user)
+        # --- POST-LOGIK (Speichern) ---
+        input_hash = hashlib.sha256(form.svnr.data.encode()).hexdigest()
+
+        # Check: Nutzt jemand ANDERES (id != current_user.id) diese E-Mail oder SVNR?
+        if User.query.filter(User.email == form.email.data, User.id != current_user.id).first():
+            flash("E-Mail bereits vergeben!", "danger")
+            return render_template("auth/edit_profile.html", form=form)
+
+        if User.query.filter(User.svnr_hash == input_hash, User.id != current_user.id).first():
+            flash("SVNR bereits registriert!", "danger")
+            return render_template("auth/edit_profile.html", form=form)
+
+        # Daten in das User-Objekt schreiben
         current_user.title = form.title.data
         current_user.firstname = form.firstname.data
         current_user.lastname = form.lastname.data
         current_user.email = form.email.data
+        current_user.svnr = encryptor.encrypt(form.svnr.data.encode()).decode()
+        current_user.svnr_hash = input_hash
         
         db.session.commit()
         flash("Profil aktualisiert!", "success")
-        return redirect(url_for('auth.edit_profile'))
-    
+        return redirect(url_for('auth.edit_profile')) # Oder wo dein Profil liegt
+
+    # --- GET-LOGIK (Laden der Seite) ---
     elif request.method == 'GET':
-        # GET: Wir holen den TEXT aus der Datenbank (current_user)
-        # und schreiben ihn in das Formular-Feld (.data)
-        # HIER DARF KEIN .data hinter current_user stehen!
+        # Bestehende Daten ins Formular füllen
         form.title.data = current_user.title
         form.firstname.data = current_user.firstname
         form.lastname.data = current_user.lastname
         form.email.data = current_user.email
         
-    return render_template("auth/edit_profile.html", form=form)
+        # SVNR ENTSCHLÜSSELN für die Anzeige im Formular
+        if current_user.svnr:
+            try:
+                decrypted_svnr = encryptor.decrypt(current_user.svnr.encode()).decode()
+                form.svnr.data = decrypted_svnr
+            except Exception:
+                form.svnr.data = "Fehler beim Entschlüsseln"
+
+    return render_template("auth/edit_profile.html", title="Profil bearbeiten", form=form)
+
+
 

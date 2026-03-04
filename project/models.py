@@ -16,6 +16,7 @@ class User(UserMixin, db.Model):
     firstname = db.Column(db.String(80),nullable=False)
     lastname = db.Column(db.String(80), nullable =False)
     svnr = db.Column(db.String(255), unique=True, nullable=True)
+    svnr_hash = db.Column(db.String(64), unique=True, index=True, nullable=True) # NEU darunter
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256))
 

@@ -1,15 +1,18 @@
 from datetime import datetime,timedelta
 import io
+from io import StringIO
 import csv
 
 from flask import Blueprint,render_template,url_for,redirect,flash,request,Response,make_response,jsonify,current_app
 from project.forms import RegistrationForm,LoginForm,MessungForm,DeleteUserForm
 from flask_login import login_required,current_user,logout_user
-from project.models import Mess
+from project.models import Mess,User
 from project import db
 import json
 from itertools import groupby   
 from werkzeug.exceptions import RequestEntityTooLarge
+import pandas as pd
+
 
 
 
@@ -263,43 +266,86 @@ def upload_csv():
     if not file:
         return redirect(url_for('main.werte'))
 
+    # --- START DER KAISERLICHEN REINIGUNG ---
+    try:
+        # Datei einlesen
+        df = pd.read_csv(file)
+        
+        # Zeitstempel säubern (Sekunden auf 00)
+        df['Datum'] = pd.to_datetime(df['Datum']).dt.floor('min')
+        
+        # Duplikate innerhalb einer Minute verhindern
+        df = df.sort_values('Datum')
+        while df['Datum'].duplicated().any():
+            df.loc[df['Datum'].duplicated(), 'Datum'] += timedelta(minutes=1)
+        
+        # Den DataFrame zurück in eine Liste von Objekten wandeln, 
+        # damit dein restlicher Code (die Schleife) wie gewohnt funktioniert
+        import_daten = df.to_dict(orient='records')
+    except Exception as e:
+        flash(f"Fehler beim Verarbeiten der CSV: {e}")
+        return redirect(url_for('main.werte'))
+
+    if not file:
+        return redirect(url_for('main.werte'))
+
     # Falls "Löschen" gewählt wurde: Alle Messwerte des Users entfernen
     if should_delete:
         Mess.query.filter_by(user_id=current_user.id).delete()
         db.session.commit() # Sofort committen, um Platz für Neues zu machen
 
-    stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
-    reader = csv.DictReader(stream)
+    # 1. Datei einlesen mit Pandas (statt csv.DictReader)
+    try:
+        # 1. Datei einlesen
+        df = pd.read_csv(file)
+        
+        # 2. Spaltennamen vereinheitlichen (Datum, Wert, Notiz)
+        df.columns = [c.capitalize() for c in df.columns]
+        
+        # 3. Zeitstempel säubern (Sekunden auf 00)
+        df['Datum'] = pd.to_datetime(df['Datum']).dt.floor('min')
+        
+        # 4. Duplikate innerhalb der Minute korrigieren (schieben)
+        df = df.sort_values('Datum')
+        while df['Datum'].duplicated().any():
+            df.loc[df['Datum'].duplicated(), 'Datum'] += timedelta(minutes=1)
+            
+        # 5. DataFrame in Liste von Dicts umwandeln
+        reader = df.to_dict(orient='records')
+        
+    except Exception as e:
+        flash(f"Fehler bei der Datenverarbeitung: {e}")
+        return redirect(url_for('main.werte'))
 
     for row in reader:
         try:
-            # Daten parsen (wie gehabt)
-            raw_date = row.get('Datum') or row.get('datum')
-            csv_date = datetime.strptime(raw_date, '%Y-%m-%d %H:%M:%S')
-            wert = int(row.get('Wert') or row.get('wert'))
-
-            # Falls NICHT gelöscht wurde, prüfen wir auf Dubletten
-            existiert = None
-            if not should_delete:
-                existiert = Mess.query.filter_by(
-                    date_mess=csv_date, 
+            # Daten extrahieren (Datum ist nun schon ein Objekt)
+            csv_date = row['Datum']
+            wert = int(row.get('Wert', 0))
+            notiz = row.get('Notiz', '')
+            
+            # Ab hier dein bestehender Check: Existiert der Wert schon?
+            existiert = Mess.query.filter_by(
+                user_id=current_user.id, 
+                zeitpunkt=csv_date
+            ).first()
+            
+            if not existiert:
+                neuer_messwert = Mess(
+                    zeitpunkt=csv_date, 
                     wert=wert, 
-                    user_id=current_user.id
-                ).first()
-
-            if existiert:
-                uebersprungen += 1
-            else:
-                new_mess = Mess(
-                    date_mess=csv_date,
-                    wert=wert,
-                    notiz=row.get('Notiz', ''),
+                    notiz=notiz, 
                     user_id=current_user.id
                 )
-                db.session.add(new_mess)
+                db.session.add(neuer_messwert)
                 neu += 1
-        except Exception as e:
+            else:
+                uebersprungen += 1
+                
+        except (ValueError, TypeError, KeyError) as e:
+            # Falls eine Zeile im CSV kaputt ist (z.B. Text statt Zahl beim Wert)
             continue
+
 
     db.session.commit()
     flash(f"Fertig! ✅ {neu} neu, ℹ️ {uebersprungen} übersprungen.", "success")

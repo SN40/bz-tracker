@@ -1,9 +1,10 @@
 from flask_wtf import FlaskForm
 from flask import current_app
 from wtforms import StringField,PasswordField,SubmitField,BooleanField,IntegerField
-from wtforms.validators import DataRequired,Length,Email,NumberRange,ValidationError
+from wtforms.validators import DataRequired,Length,Email,NumberRange,ValidationError,EqualTo
 from .models import User
 from flask_login import current_user
+import hashlib
 
 # Automatische Validierung für das Feld 'svnr'
 def validate_svnr(self, field):
@@ -87,6 +88,13 @@ class EditProfileForm(FlaskForm):
     firstname = StringField('Vorname', validators=[DataRequired()])
     lastname = StringField('Nachname', validators=[DataRequired()])
     email = StringField('E-Mail', validators=[DataRequired(), Email()])
+    svnr = StringField('Sozialversicherungsnummer', validators=[DataRequired(), validate_svnr])
+    new_password = PasswordField('Neues Passwort')
+   
+
+    # Hier muss exakt 'new_password' in Hochkommas stehen
+    confirm_password = PasswordField('Wiederholen', 
+        validators=[EqualTo('new_password', message='Passwörter stimmen nicht überein!')])
     submit = SubmitField('Änderungen speichern')
 
     def validate_email(self, email):

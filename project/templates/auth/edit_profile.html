@@ -1,31 +1,108 @@
-{% extends "base.html" %}
-{% block content %}
+{% extends "base.html" %} {% block content %}
 <div class="container mt-4">
-    <h1>Profil bearbeiten</h1>
-    <form method="POST" action="">
-        {{ form.hidden_tag() }}
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+          <h4 class="card-title mb-4 text-primary text-center">
+            👤 Profil bearbeiten
+          </h4>
 
-        <div class="mb-3">
-            {{ form.title.label(class="form-label") }}
-            {{ form.title(class="form-control") }}
-        </div>
+          <!-- Flash-Messages anzeigen -->
+          {% with messages = get_flashed_messages(with_categories=true) %} {% if
+          messages %} {% for category, message in messages %}
+          <div
+            class="alert alert-{{ category }} alert-dismissible fade show"
+            role="alert"
+          >
+            {{ message }}
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="alert"
+              aria-label="Close"
+            ></button>
+          </div>
+          {% endfor %} {% endif %} {% endwith %}
 
-        <div class="mb-3">
-            {{ form.firstname.label(class="form-label") }}
-            {{ form.firstname(class="form-control") }}
-        </div>
+          <form method="POST">
+            {{ form.hidden_tag() }}
+            <!-- Wichtig für CSRF-Schutz! -->
 
-        <div class="mb-3">
-            {{ form.lastname.label(class="form-label") }}
-            {{ form.lastname(class="form-control") }}
-        </div>
+            <div class="mb-3">
+              {{ form.title.label(class="form-label") }} {{
+              form.title(class="form-control" + (" is-invalid" if
+              form.title.errors else "")) }} {% for error in form.title.errors
+              %}
+              <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+            </div>
 
-        <div class="mb-3">
-            {{ form.email.label(class="form-label") }}
-            {{ form.email(class="form-control") }}
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                {{ form.firstname.label(class="form-label") }} {{
+                form.firstname(class="form-control" + (" is-invalid" if
+                form.firstname.errors else "")) }} {% for error in
+                form.firstname.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+                {% endfor %}
+              </div>
+              <div class="col-md-6 mb-3">
+                {{ form.lastname.label(class="form-label") }} {{
+                form.lastname(class="form-control" + (" is-invalid" if
+                form.lastname.errors else "")) }} {% for error in
+                form.lastname.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+                {% endfor %}
+              </div>
+            </div>
+
+            <div class="mb-3">
+              {{ form.email.label(class="form-label") }} {{
+              form.email(class="form-control" + (" is-invalid" if
+              form.email.errors else "")) }} {% for error in form.email.errors
+              %}
+              <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+            </div>
+
+            <div class="mb-4">
+              {{ form.svnr.label(class="form-label") }} {{
+              form.svnr(class="form-control" + (" is-invalid" if
+              form.svnr.errors else "")) }}
+              <div class="form-text">
+                Deine SVNR wird sicher verschlüsselt gespeichert.
+              </div>
+              {% for error in form.svnr.errors %}
+              <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+            </div>
+
+            <div class="d-grid gap-2">
+              <button type="submit" id="submitBtn" class="btn btn-primary">
+                    <span id="btnText">💾 Änderungen speichern</span>
+                    <span id="btnSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                </button>
+              <a href="{{ url_for('main.werte_liste') }}" class="btn btn-outline-secondary">Abbrechen</a
+            </div>
+          </form>
         </div>
-        {{ form.submit(class="btn btn-primary") }}
-        <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary">Abbrechen</a>
-    </form>
+      </div>
+    </div>
+  </div>
 </div>
+<script>
+document.querySelector('form').addEventListener('submit', function() {
+    const btn = document.getElementById('submitBtn');
+    const text = document.getElementById('btnText');
+    const spinner = document.getElementById('btnSpinner');
+
+    // Button deaktivieren (verhindert Mehrfach-Klicks)
+    btn.disabled = true;
+    
+    // Text verstecken, Spinner zeigen
+    text.classList.add('d-none');
+    spinner.classList.remove('d-none');
+});
+</script>
 {% endblock %}
