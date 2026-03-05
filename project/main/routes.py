@@ -264,50 +264,59 @@ def upload_csv():
     if not file:
         return redirect(url_for('main.werte_liste'))
 
-    # 1. Die Reinigung (Nur EINMAL!)
     try:
         file.seek(0)
         content = file.stream.read().decode("utf-8-sig")
         df = pd.read_csv(io.StringIO(content))
 
-        # Spaltennamen säubern & Datum fixen
         df.columns = df.columns.str.strip().str.capitalize()
+        # Datum fixen und ungültige Zeilen (NaT) entfernen
         df['Datum'] = pd.to_datetime(df['Datum'], errors='coerce')
         df = df.dropna(subset=['Datum'])
         df['Datum'] = df['Datum'].dt.floor('min')
 
-        # Duplikate innerhalb der CSV schieben
+        # Duplikate in der CSV behandeln
         df = df.sort_values('Datum')
         while df['Datum'].duplicated().any():
             df.loc[df['Datum'].duplicated(), 'Datum'] += timedelta(minutes=1)
         
-        # Das ist jetzt unsere fertige Liste für die Datenbank
         reader = df.to_dict(orient='records')
-
     except Exception as e:
-        flash(f"Fehler bei der Datenverarbeitung: {e}")
+        flash(f"Fehler bei der CSV-Aufbereitung: {e}", "danger")
         return redirect(url_for('main.werte_liste'))
 
-    # 2. Falls gewünscht: Alte Daten löschen
-    if should_delete:
-        Mess.query.filter_by(user_id=current_user.id).delete()
-        db.session.commit()
+    try:
+        if should_delete:
+            Mess.query.filter_by(user_id=current_user.id).delete()
+            # Wir committen das Löschen noch nicht, sondern machen alles in EINER Transaktion
+        
+        for row in reader:
+            csv_date = row.get('Datum') or row.get('Date_mess')
+            
+            # In Python-Datetime umwandeln für SQLAlchemy
+            if hasattr(csv_date, 'to_pydatetime'):
+                csv_date = csv_date.to_pydatetime()
 
-    # 3. In die Datenbank schreiben
-    for row in reader:
-        try:
-            csv_date = row['Datum']
-            wert = int(row.get('Wert', 0))
-            notiz = row.get('Notiz', '')
+            wert = int(float(row.get('Wert', 0)))
+            notiz = str(row.get('Notiz', ''))
+
+            # Sicherstellen, dass 'Wert' eine Zahl ist (NaN/Leerzeichen abfangen)
+            try:
+                wert_raw = row.get('Wert')
+                wert = int(float(wert_raw)) if pd.notnull(wert_raw) else 0
+            except (ValueError, TypeError):
+                wert = 0
+                
+            notiz = str(row.get('Notiz', ''))[:200] # Kürzen auf DB-Länge falls nötig
             
             existiert = Mess.query.filter_by(
                 user_id=current_user.id, 
-                zeitpunkt=csv_date
+                date_mess=csv_date
             ).first()
             
             if not existiert:
                 neuer_messwert = Mess(
-                    zeitpunkt=csv_date, 
+                    date_mess=csv_date, 
                     wert=wert, 
                     notiz=notiz, 
                     user_id=current_user.id
@@ -316,11 +325,15 @@ def upload_csv():
                 neu += 1
             else:
                 uebersprungen += 1
-        except Exception:
-            continue
 
-    db.session.commit()
-    flash(f"Fertig! ✅ {neu} neu, ℹ️ {uebersprungen} übersprungen.", "success")
+        db.session.commit()
+        flash(f"Erfolg! {neu} neu hinzugefügt, {uebersprungen} übersprungen.", "success")
+        
+    except Exception as e:
+        db.session.rollback() # WICHTIG: Macht alle Änderungen rückgängig bei Fehler
+        flash(f"Datenbank-Fehler beim Speichern: {e}", "danger")
+        # Hier könntest du zusätzlich print(f"DEBUG: {e}") nutzen für das PythonAnywhere Error Log
+
     return redirect(url_for('main.werte_liste'))
 
 
@@ -389,17 +402,11 @@ def delete_account():
     # Zeigt bei GET die Sicherheitsabfrage (Template)
     return render_template('confirm_delete.html')
 
-
-# API-Route Warnung und das Passwort-Feld
-@main_bp.route("/settings/delete",methods=["GET","POST"])
-def settings_delete():
-    pass
-
 @main_bp.errorhandler(413)
 @main_bp.errorhandler(RequestEntityTooLarge)
 def handle_file_too_large(e):
     flash("Die Datei ist zu groß! Maximal 2 MB erlaubt.", "danger")
     return redirect(url_for('main.werte_liste')), 413
 
-# API-Route zum Aktualisieren der Notiz einer Messung (AJAX)
+
 

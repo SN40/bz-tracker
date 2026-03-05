@@ -137,8 +137,8 @@ def reset_password_request():
 
             Falls du diese Anfrage nicht gestellt hast, kannst du diese E-Mail einfach ignorieren.
             '''
-        # Abschicken!
-        mail.send(msg)
+            # Abschicken!
+            mail.send(msg)
         
         flash('Eine E-Mail mit Anweisungen wurde gesendet.', 'info')
         return redirect(url_for('auth.login'))
