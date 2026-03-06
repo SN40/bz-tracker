@@ -8,6 +8,7 @@ from flask_mail import Mail
 from cryptography.fernet import Fernet
 from sqlalchemy import MetaData
 
+
 # 1. Pfad und Umgebung laden
 basedir = os.path.abspath(os.path.dirname(__file__))
 database_path = os.path.join(basedir, '..', 'instance', 'database.db')
@@ -32,7 +33,7 @@ db = SQLAlchemy(metadata=metadata) # Nur EINMAL definieren!
 def create_app():
     app = Flask(__name__)
 
-    # --- Konfiguration ---
+     # --- Konfiguration ---
     app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or 'fallback-key'
     app.config['SECRET_KEY_ENCRYPTION'] = os.environ.get('FERNET_KEY')
@@ -48,13 +49,33 @@ def create_app():
     app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
     app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
     print(f"--- KONTROLLE: Datenbank-Pfad ist: {app.config.get('SQLALCHEMY_DATABASE_URI')} ---")
-    # --- Initialisierung ---
-    db.init_app(app)
-    mail.init_app(app)
-    migrate.init_app(app, db)
-    login_manager.init_app(app)
 
     with app.app_context():
+
+        # --- Initialisierung ---
+        db.init_app(app)
+        mail.init_app(app)
+        migrate.init_app(app, db)
+        login_manager.init_app(app)
+    
+        # --- Blueprints ---
+        from .main.routes import main_bp
+        from project.auth.routes import auth_bp
+        from .api.routes import api_bp
+
+        # pylint: disable=import-outside-toplevel
+        from project.api.v2 import v2_blueprint # pylint: disable=no-name-in-module
+        from project.api.v1 import v1_blueprint # pylint: disable=no-name-in-module
+        
+        
+
+        app.register_blueprint(main_bp)
+        app.register_blueprint(auth_bp)
+        app.register_blueprint(api_bp)
+        app.register_blueprint(v2_blueprint, url_prefix='/api/v2')
+        app.register_blueprint(v1_blueprint, url_prefix='/api/v1')
+        
+
         db.create_all()
 
     # Fernet für Verschlüsselung bereitstellen
@@ -70,15 +91,7 @@ def create_app():
     login_manager.login_view = "auth.login"
     login_manager.login_message_category = "info"
 
-    # --- Blueprints ---
-    from .main.routes import main_bp
-    from project.auth.routes import auth_bp
-    from .api.routes import api_bp
-
-    app.register_blueprint(main_bp)
-    app.register_blueprint(auth_bp)
-    app.register_blueprint(api_bp)
-
+    
     # User Loader
     from .models import User
     @login_manager.user_loader

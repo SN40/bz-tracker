@@ -90,6 +90,15 @@ class Mess(db.Model):
     def __repr__(self):
         return f"<Mess {self.wert}>"
     
+     # Die neue Übersetzungseinheit direkt darunter:
+    def to_dict(self):
+        return {
+            "id": self.mess_id,
+            "wert": self.wert,
+            # Hier nutzen wir jetzt ebenfalls date_mess
+            "zeit": self.date_mess.isoformat() if self.date_mess else None
+        }
+    
     def get_status_color(self):
         """Gibt die passende Bootstrap-Farbe zurück."""
         if self.wert < 70:

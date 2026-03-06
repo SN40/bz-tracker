@@ -169,7 +169,7 @@ def werte_drucken():
     alle_messungen = Mess.query.filter(
         Mess.user_id == current_user.id,
         Mess.date_mess >= start_datum
-    ).order_by(Mess.date_mess.asc()).all()
+    ).order_by(Mess.date_mess.desc()).all()
 
     gruppiert = []
     # Gruppierung nach Kalendertag

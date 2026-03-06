@@ -1,11 +1,15 @@
+from flask import jsonify
+# In api_v1.py
+from . import v1_blueprint
+from project.models import Mess # Beispiel-Model
+from project import db
 
-from fastapi import APIRouter
-# WICHTIG: Prüfe, ob in project/api/v1/endpoints/users.py eine Variable 'router' existiert!
-from project.api.v1.endpoints import users 
+@v1_blueprint.route('/test')
+def test():
+    return {"msg": "V1 meldet sich zum Dienst!"}
 
-# Das ist die Variable, die main.py sucht:
-api_router = APIRouter()
-
-# Hier binden wir die Unter-Router ein
-# Hier wird aus "/" (in users.py) -> "/users"
-api_router.include_router(users.router, prefix="/users", tags=["V1"])
+@v1_blueprint.route('/werte', methods=['GET'])
+def get_werte_v1():
+    # Die alte, stabile Logik: Einfach alle Werte ausgeben
+    werte = db.session.execute(db.select(Mess)).scalars().all()
+    return jsonify([w.to_dict() for w in werte]), 200
