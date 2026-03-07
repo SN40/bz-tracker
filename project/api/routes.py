@@ -2,7 +2,7 @@
 
 from flask import Blueprint, current_app, flash,jsonify, redirect, render_template,request,url_for,Response
 from project.models import User
-from project import db
+from project import db,login_manager
 from werkzeug.security import generate_password_hash
 from itsdangerous import URLSafeTimedSerializer as Serializer
 from flask_mail import Message
@@ -23,6 +23,15 @@ def confirm_reset_token(token, expiration=3600):
 
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
+
+@login_manager.unauthorized_handler
+def handle_unauthorized():
+    if request.path.startswith('/api/'):
+        return jsonify({"error": "Authentifizierung erforderlich."}), 401
+    
+    from flask import redirect, url_for, flash
+    flash("Bitte melden Sie sich an.", "warning")
+    return redirect(url_for('auth_bp.login'))
 
 #API-Route zum Erstellen eines neuen Benutzers
 @api_bp.route('/users', methods=['POST'])

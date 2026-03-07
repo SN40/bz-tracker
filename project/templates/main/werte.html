@@ -46,6 +46,7 @@ block content %}
               <option value="Vor dem Essen"></option>
               <option value="Nach dem Essen"></option>
               <option value="Snack"></option>
+              <option value="Süssigkeiten"></option>
               <option value="Alkohol"></option>
               <option value="Auswärts Essen"></option>
               <option value="Junkfood"></option>
@@ -61,20 +62,55 @@ block content %}
         </div>
       </div>
 
-      {% if messungen %}
+      {% if gruppierte_messungen %}
       <div class="card shadow-sm mb-4">
         <div
           class="chart-container"
           style="
             position: relative;
-            height: 280px;
+            height: 300px;
             width: 100%;
             margin-bottom: 30px;
           "
         >
-          <canvas id="lineChart"></canvas>
+          <!-- Zeitraum-Filter für Grafik -->
+          <div class="d-flex justify-content-center gap-1 mb-3">
+            <a
+              href="{{ url_for('main.werte_liste', days=7) }}"
+              class="btn btn-sm btn-outline-secondary"
+              >7T</a
+            >
+            <a
+              href="{{ url_for('main.werte_liste', days=14) }}"
+              class="btn btn-sm btn-outline-secondary"
+              >14T</a
+            >
+            <a
+              href="{{ url_for('main.werte_liste', days=30) }}"
+              class="btn btn-sm btn-outline-secondary"
+              >30T</a
+            >
+            <a
+              href="{{ url_for('main.werte_liste', days=90) }}"
+              class="btn btn-sm btn-outline-secondary"
+              >90T</a
+            >
+            <a
+              href="{{ url_for('main.werte_liste', days=0) }}"
+              class="btn btn-sm btn-outline-secondary"
+              >Alle</a
+            >
+          </div>
+
+          <div
+            class="chart-container"
+            style="position: relative; height: 280px; width: 100%"
+          >
+            <canvas id="lineChart"></canvas>
+          </div>
         </div>
       </div>
+
       <div class="mt-4">
         <hr />
         <h5>Datenverwaltung & Backup</h5>
@@ -240,84 +276,71 @@ block content %}
             </tr>
           </thead>
           <tbody>
-            {% for tag in gruppierte_messungen %}
+          {% for tag in gruppierte_messungen %}
+            {# 1. Die Datums-Trennzeile (Tages-Überschrift) #}
             <tr class="table-secondary">
               <td colspan="4" class="fw-bold py-2">
-                <i class="bi bi-calendar3 me-2"></i> {{
-                tag.datum.strftime('%d.%m.%Y') }}
-                <span class="float-end"
-                  >Tages-Ø: {{ tag.durchschnitt }} mg/dL</span
-                >
+                <i class="bi bi-calendar3 me-2"></i> {{ tag.datum.strftime('%d.%m.%Y') }}
+                <span class="float-end">Tages-Ø: {{ tag.durchschnitt }} mg/dL</span>
               </td>
             </tr>
+
             {% for m in tag.werte %}
-            <tr class="table-{{ m.get_status_color() }}">
+            {# 2. Die eigentliche Messwert-Zeile (Hier steckt jetzt das Chart-Label drin!) #}
+            <tr class="table-{{ m.get_status_color() }}" data-chart-label="{{ m.date_mess.strftime('%d.%m. %H:%M') }}">
               <td class="py-3">
-                <span class="text-muted small me-3"
-                  >{{ m.date_mess.strftime('%H:%M') }}</span
-                >
-                <span class="fs-5 fw-bold">{{ m.wert }}</span>
+                <span class="text-muted small me-3">{{ m.date_mess.strftime('%H:%M') }}</span>
+                <span class="fs-5 fw-bold">{{ m.wert }} </span>
               </td>
+
               <td class="text-center">
-                <!-- Badges mit fester Breite für ein ruhiges Bild -->
-                <span
-                  class="badge {{ 'bg-success' if m.get_status_color() == 'success' else 'bg-danger' }}"
-                  style="width: 80px; padding: 8px"
-                >
-                  {{ "Stabil" if m.get_status_color() == 'success' else
-                  "Achtung!" }}
+                <span class="badge {{ 'bg-success' if m.get_status_color() == 'success' else 'bg-danger' }}"
+                      style="width: 80px; padding: 8px">
+                  {{ "Stabil" if m.get_status_color() == 'success' else "Achtung!" }}
                 </span>
               </td>
-              <td style="min-width: 180px">
-                <div
-                  class="input-group input-group-sm rounded-pill px-2 hover-edit-container"
-                >
-                  <span
-                    class="input-group-text bg-transparent border-0 text-muted p-0 me-2"
-                  >
-                    <i
-                      class="bi bi-pencil-fill"
-                      style="font-size: 0.8rem; opacity: 0.5"
-                    ></i>
+
+              <td style="min-width: 180px; vertical-align: middle;">
+                <div class="input-group input-group-sm rounded-pill px-2 hover-edit-container" style="position: relative;">
+                  <span class="input-group-text bg-transparent border-0 text-muted p-0 me-2">
+                    <i class="bi bi-pencil-fill" style="font-size: 0.8rem; opacity: 0.5"></i>
                   </span>
-                  <input
-                    type="text"
-                    class="form-control form-control-sm border-0 bg-transparent text-dark shadow-none"
-                    value="{{ m.notiz or '' }}"
-                    onblur="saveNotiz({{ m.mess_id }}, this.value)"
-                    onkeypress="
-                      if (event.key === 'Enter') {
-                        this.blur();
-                      }
-                    "
-                    placeholder="Notiz ergänzen..."
-                  />
+                  
+                  <!-- Das Input-Feld -->
+                  <input type="text" 
+                        id="notiz-{{ m.mess_id }}" 
+                        name="notiz"
+                        class="form-control form-control-sm border-0 bg-transparent text-dark shadow-none" 
+                        value="{{ m.notiz or '' }}" 
+                        placeholder="Notiz ergänzen..."
+                        onblur="saveNotizV2({{ m.mess_id }}, this.value, this)" 
+                        onkeypress="if (event.key === 'Enter') { this.blur(); }" 
+                        style="padding-right: 30px;">
+
+                  <!-- Hier landet das Häkchen automatisch per JS -->
                 </div>
               </td>
 
-              <td
-                class="text-end"
-                style="white-space: nowrap; min-width: 160px"
-              >
-                <a
-                  href="{{ url_for('main.update_messung', mess_id=m.mess_id) }}"
+              <td class="text-end" style="white-space: nowrap; min-width: 160px">
+                <!-- Ändern Button -->
+                <a href="{{ url_for('main.update_messung', mess_id=m.mess_id) }}"
                   class="btn btn-primary text-white shadow-sm px-2 py-1"
-                  style="font-size: 0.75rem; vertical-align: middle"
-                >
+                  style="font-size: 0.75rem; vertical-align: middle">
                   <i class="bi bi-pencil-square"></i> Ändern
                 </a>
-                <a
-                  href="{{ url_for('main.delete_messung', mess_id=m.mess_id) }}"
-                  class="btn btn-danger text-white shadow-sm px-2 py-1"
-                  style="font-size: 0.75rem; vertical-align: middle"
-                  onclick="return confirm('Sicher löschen?');"
-                >
-                  <i class="bi bi-trash"></i> Löschen
-                </a>
+
+                <!-- NEUER Löschen Button (API/AJAX) -->
+                <button type="button"
+                        class="btn btn-danger text-white shadow-sm px-2 py-1 delete-btn" 
+                        style="font-size: 0.75rem; vertical-align: middle"
+                        data-id="{{ m.mess_id }}">
+                    <i class="bi bi-trash"></i> Löschen
+                </button>
               </td>
             </tr>
-            {% endfor %} {% endfor %}
-          </tbody>
+            {% endfor %} {# Ende tag.werte #}
+          {% endfor %} {# Ende gruppierte_messungen #}
+        </tbody>
         </table>
       </div>
 
@@ -326,11 +349,11 @@ block content %}
         <ul class="pagination justify-content-center shadow-sm">
           <!-- Zurück Button -->
           <li
-            class="page-item {% if not messungen.has_prev %}disabled{% endif %}"
+            class="page-item {% if not pagination.has_prev %}disabled{% endif %}"
           >
             <a
               class="page-link"
-              href="{{ url_for('main.werte_liste', page=messungen.prev_num) if messungen.has_prev else '#' }}"
+              href="{{ url_for('main.werte_liste', page=pagination.prev_num) if pagination.has_prev else '#' }}"
             >
               <i class="bi bi-chevron-double-left"></i>
               <span class="d-none d-md-inline">Zurück</span>
@@ -340,17 +363,17 @@ block content %}
           <!-- Aktuelle Seite Info -->
           <li class="page-item disabled">
             <span class="page-link bg-light text-dark fw-bold">
-              Seite {{ messungen.page }} von {{ messungen.pages }}
+              Seite {{ pagination.page }} von {{ pagination.pages }}
             </span>
           </li>
 
           <!-- Vorwärts Button -->
           <li
-            class="page-item {% if not messungen.has_next %}disabled{% endif %}"
+            class="page-item {% if not pagination.has_next %}disabled{% endif %}"
           >
             <a
               class="page-link"
-              href="{{ url_for('main.werte_liste', page=messungen.next_num) if messungen.has_next else '#' }}"
+              href="{{ url_for('main.werte_liste', page=pagination.next_num) if pagination.has_next else '#' }}"
             >
               <span class="d-none d-md-inline">Weiter</span>
               <i class="bi bi-chevron-double-right"></i>
@@ -373,11 +396,12 @@ block content %}
             <!-- HbA1c (Wichtigster Wert oben) -->
             <div class="col-md-3 border-end">
               <small class="text-muted d-block">HbA1c (Langzeit)</small>
-              <span
+              <span 
+                id="hba1c-badge" 
                 class="badge {% if current_user.mess_stats.hba1c > 7.0 %}bg-danger{% else %}bg-success{% endif %}"
-              >
-                {{ current_user.mess_stats.hba1c }} %
-              </span>
+                >
+              <span id="hba1c-display">{{ current_user.mess_stats.hba1c }}</span> %
+</span>
             </div>
 
             <!-- Aktueller Schnitt -->
@@ -405,76 +429,205 @@ block content %}
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function() {
-        // 1. Daten abholen
-        const bzWerte = {{ werte | safe if werte else '[]' }};
-        const bzLabels = {{ labels | safe if labels else '[]' }};
-        const bzSchnitt = {{ schnitt_linie | safe if schnitt_linie else '[]' }};
+       // 1. Daten abholen (Namen müssen exakt zur Route passen!)
+      const bzLabels = {{ bzLabels | tojson | safe }};
+      const bzWerte = {{ bzWerte | tojson | safe }};
+      const bzSchnitt = {{ schnitt_linie | safe }}; 
 
         // 2. Canvas finden (Sicherstellen, dass die ID im HTML 'lineChart' ist!)
         const canvas = document.getElementById('lineChart');
         if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-
+        //const ctx = canvas.getContext('2d');
+        const ctx = document.getElementById('lineChart').getContext('2d');
         // 3. Chart bauen
-        new Chart(ctx, {
+        window.myLineChart = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: bzLabels,
                 datasets: [
-                    {
-                        label: 'Blutzucker (mg/dL)',
-                        data: bzWerte,
-                        borderColor: '#007bff',
-                        tension: 0.3,
-                        fill: true,
-                        // Dynamische Farben & Größen
-                        pointBackgroundColor: bzWerte.map(v => v >= 250 ? '#dc3545' : '#007bff'),
-                        pointRadius: bzWerte.map(v => v >= 250 ? 8 : 4),
-                        pointHoverRadius: 10
-                    }, // <-- Hier wird der erste Datensatz korrekt geschlossen!
-                    {
-                        label: 'Ø Durchschnitt',
-                        data: bzSchnitt,
-                        borderColor: '#ff9f40',
-                        borderDash: [5, 5],
-                        pointRadius: 0,
-                        fill: false,
-                        borderWidth: 2
+                  {
+                    label: 'Blutzucker',
+                    data: bzWerte,
+                    borderColor: '#318fec',
+                    pointRadius: 4,
+                    order: 2, // <--- WICHTIG: Komma hier! Höhere Zahl = Hintergrund
+                    pointBackgroundColor: function(context) {
+                        const index = context.dataIndex;
+                        const value = context.dataset.data[index];
+                        return (value >= 180 || value <= 60) ? 'red' : '#318fec';
+                    },
+                    pointBorderColor: function(context) {
+                        const index = context.dataIndex;
+                        const value = context.dataset.data[index];
+                        return (value >= 180 || value <= 60) ? 'darkred' : '#318fec';
                     }
-                ]
-            },
+                  },
+            {
+              label: 'Durchschnitt',
+              data: bzSchnitt,
+              borderColor: 'red',
+              borderWidth: 4,
+              borderDash: [10, 5],
+              pointRadius: 0,
+              fill: false,
+              tension: 0,
+              order: 1 // <--- WICHTIG: Niedrige Zahl = Vordergrund!
+            }
+          ]
+      },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: false,
-                        suggestedMax: 450, // Hier nach oben geschoben für Ordnung
-                        title: { display: true, text: 'mg/dL' }
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                  tooltip: {
+                      enabled:true,
+                      // Dynamische Hintergrundfarbe des Tooltips
+                      backgroundColor: function(context) {
+                          const value = context[0] ? context[0].raw : context.raw;
+                          if (value >= 180 || value <= 60) return 'rgba(255, 0, 0, 0.9)'; // Kräftiges Warn-Rot
+                          return 'rgba(0, 0, 0, 0.8)'; // Standard Schwarz
+                      },
+                      //titleColor: '#fff',
+                      //bodyColor: '#fff',
+                      callbacks: {
+                          title: function(context) {
+                              const value = context[0].raw;
+                              if (value >= 180) return "⚠️ ACHTUNG: ZU HOCH!";
+                              if (value <= 60) return "⚠️ ACHTUNG: ZU NIEDRIG!";
+                              return "Messwert";
+                          },
+                          label: function(context) {
+                              return ` Wert: ${context.parsed.y} mg/dL`;
+                          }
+                      }
+                  }
+              },
+              scales: {
+                        y: {
+                            beginAtZero: false,
+                            grid: {
+                                color: 'red'
+                            }
+                        }
                     }
-                }
-            }
-        });
-    });
+                } // Ende options
+            }); // Ende window.myLineChart
+        }) // Ende if (ctx)
+  //}); // Ende DOMContentLoaded (Nur wenn du es oben geöffnet hast!)
 
-    // Deine Notiz-Funktion bleibt unverändert...
-    function saveNotiz(messId, neuerText) {
-        const inputField = event.target;
-        const container = inputField.closest('.hover-edit-container');
-        fetch(`/update_notiz/${messId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ notiz: neuerText })
-        })
-        .then(response => {
-            if (response.ok) {
-                container.classList.add('bg-success', 'text-white');
-                setTimeout(() => {
-                    container.classList.remove('bg-success', 'text-white');
-                }, 500);
-            }
-        });
-    }
+         
+
+  </script>
+
+ <script>
+  document.addEventListener('DOMContentLoaded', function() {
+      // 1. Alle Lösch-Buttons finden
+      document.querySelectorAll('.delete-btn').forEach(button => {
+          button.addEventListener('click', function() {
+              const messId = this.getAttribute('data-id');
+              const row = this.closest('tr');
+
+              if (confirm('Sicher löschen?')) {
+                  // API-Anruf zum Löschen
+                  fetch(`/api/v2/werte/${messId}`, { method: 'DELETE' })
+                  .then(res => res.json())
+                  .then(data => {
+                      if (data.error) {
+                          alert("Fehler: " + data.error);
+                          return;
+                      }
+
+                      // A) Zeile aus Tabelle entfernen
+                      row.style.transition = "opacity 0.3s";
+                      row.style.opacity = "0";
+                      setTimeout(() => row.remove(), 300);
+
+                      // B) Diagramm live updaten
+                      if (window.myLineChart) {
+                        const labelZumLoeschen = row.getAttribute('data-chart-label').trim();
+                        const chartIndex = window.myLineChart.data.labels.indexOf(labelZumLoeschen);
+
+                        if (chartIndex !== -1) {
+                            // 1. Label entfernen
+                            window.myLineChart.data.labels.splice(chartIndex, 1);
+                            
+                            // 2. Daten aus JEDEM Dataset an dieser Stelle entfernen
+                            window.myLineChart.data.datasets.forEach((dataset) => {
+                                if (dataset.data) {
+                                    dataset.data.splice(chartIndex, 1);
+                                }
+                            });
+
+                            // 3. WICHTIG: Das Diagramm muss wissen, dass es sich komplett neu zeichnen soll
+                            window.myLineChart.update('none'); // 'none' verhindert Animations-Glitch
+                            console.log("Chart-Punkt erfolgreich entfernt.");
+                        } else {
+                            console.warn("Label im Chart nicht gefunden: " + labelZumLoeschen);
+                        }
+                    }
+                      // C) HbA1c-Badge live updaten
+                      fetch('/api/v2/dashboard')
+                      .then(r => r.json())
+                      .then(statsData => {
+                          const display = document.getElementById('hba1c-display');
+                          const badge = document.getElementById('hba1c-badge');
+                          
+                          if (display) {
+                              display.innerText = statsData.statistik.hba1c;
+                          }
+                          
+                          if (badge) {
+                              if (statsData.statistik.hba1c > 7.0) {
+                                  badge.classList.replace('bg-success', 'bg-danger');
+                              } else {
+                                  badge.classList.replace('bg-danger', 'bg-success');
+                              }
+                          }
+                      })
+                      .catch(err => console.error("Fehler beim Dashboard-Update:", err));
+                  })
+                  .catch(err => {
+                      console.error("API-Fehler:", err);
+                      alert("Verbindung zur API fehlgeschlagen.");
+                  });
+              }
+          });
+      });
+  });
+  </script>
+  <script>
+    // Wir nennen sie zum Testen kurz um, damit kein Cache uns ärgert!
+function saveNotizV2(messId, neueNotiz, element) {
+    console.log(">>> STARTE SPEICHERN NEU <<<");
+
+    fetch(`/api/v2/werte/${messId}/notiz`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notiz: neueNotiz })
+    })
+    .then(res => {
+        if (res.ok) {
+            console.log(">>> SERVER OK - ZEIGE HÄCKCHEN <<<");
+            
+            // HOLZHAMMER-METHODE: Ein Alarm zum Testen!
+            // alert("Speichern war erfolgreich!"); 
+
+            const check = document.createElement("span");
+            check.innerHTML = " ✅";
+            check.style.color = "green";
+            check.style.fontWeight = "bold";
+            
+            // Einfach direkt hinter das Input klatschen
+            element.after(check);
+
+            setTimeout(() => { check.remove(); }, 2000);
+        }
+    })
+    .catch(err => console.error("Netzwerkfehler:", err));
+}
+
+
+
   </script>
 
   {% endblock content %}

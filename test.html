@@ -1,0 +1,49 @@
+ function saveNotiz(messId, neuerText) {
+        const inputField = event.target;
+        const container = inputField.closest('.hover-edit-container');
+        fetch(`/update_notiz/${messId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ notiz: neuerText })
+        })
+        .then(response => {
+            if (response.ok) {
+                container.classList.add('bg-success', 'text-white');
+                setTimeout(() => {
+                    container.classList.remove('bg-success', 'text-white');
+                }, 500);
+            }
+
+
+function showSuccessCheck(element) {
+    const existingCheck = element.parentNode.querySelector('.save-check');
+    if (existingCheck) existingCheck.remove();
+
+    const check = document.createElement("span");
+    check.className = "save-check";
+    
+    // Grünes SVG-Häkchen direkt als String
+    check.innerHTML = `
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#28a745" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+    `;
+    
+    Object.assign(check.style, {
+        position: 'absolute',
+        right: '10px',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        display: 'flex',
+        alignItems: 'center',
+        pointerEvents: 'none',
+        transition: 'opacity 0.5s ease'
+    });
+
+    element.parentNode.appendChild(check);
+
+    setTimeout(() => {
+        check.style.opacity = "0";
+        setTimeout(() => check.remove(), 500);
+    }, 1500);
+}

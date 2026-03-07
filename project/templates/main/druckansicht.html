@@ -243,15 +243,18 @@
     
     <td style="padding: 5px;">
         {% if m.wert >= 180 %}
-            <strong style="color: #dc3545;">{{ m.wert }}</strong> <small><strong>(Hoch!)</strong></small>
+            <strong style="color: #dc3545;">{{ m.wert }}&nbsp; </strong> <small><strong>(Hoch!)</strong></small>
         {% elif m.wert >= 140 %}
-            <strong style="color: #856404;">{{ m.wert }}</strong> <small><strong>(Erhöht!)</strong></small> {# Dunkleres Orange für bessere Lesbarkeit #}
+            <strong style="color: #856404;">{{ m.wert }}&nbsp; </strong> <small><strong>(Erhöht!)</strong></small> {# Dunkleres Orange für bessere Lesbarkeit #}
+        {% elif m.wert <=100 %}&nbsp;
+            <strong style="color: #004085;">{{ m.wert }} </strong> <small></small>
+
         {% elif m.wert < 70 %}
-            <strong style="color: #004085;">{{ m.wert }}</strong> <small><strong>(Niedrig!)</strong></small>
+            <strong style="color: #004085;">{{ m.wert }}&nbsp; </strong> <small><strong>(Niedrig!)</strong></small>
         {% else %}
-            <strong>{{ m.wert }}</strong>
+            <strong>{{ m.wert }} </strong>
         {% endif %}
-        mg/dL
+        &nbsp;&nbsp;mg/dL 
     </td>
     
     <td style="padding: 5px;">{{ m.notiz if m.notiz else '-' }}</td>

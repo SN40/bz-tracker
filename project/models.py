@@ -4,6 +4,7 @@ from . import db
 from datetime import datetime, timezone
 import pytz
 from flask import current_app
+from project import login_manager
 
 
 #from project import db    # Importiere das db-Objekt aus der __init__.py
@@ -73,6 +74,11 @@ class User(UserMixin, db.Model):
     def __repr__(self):
         return f"<User {self.username}>"
     
+@login_manager.user_loader
+def load_user(user_id):
+    # Diese Funktion muss top-level stehen, NICHT eingerückt in der Klasse User
+    return db.session.get(User, int(user_id))    
+    
 # Definiere das Mess-Modell
 class Mess(db.Model):
     def get_berlin_time():
@@ -99,6 +105,18 @@ class Mess(db.Model):
             "zeit": self.date_mess.isoformat() if self.date_mess else None
         }
     
+    # In models.py oder einer utils.py
+    @staticmethod
+    def ist_duplikat(user_id, wert, zeitfenster_sekunden=60):
+        from datetime import datetime, timedelta
+        limit = datetime.now() - timedelta(seconds=zeitfenster_sekunden)
+        return Mess.query.filter(
+            Mess.user_id == user_id,
+            Mess.wert == wert,
+            Mess.date_mess >= limit
+        ).first() is not None
+
+
     def get_status_color(self):
         """Gibt die passende Bootstrap-Farbe zurück."""
         if self.wert < 70:
